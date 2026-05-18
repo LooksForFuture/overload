@@ -25,4 +25,12 @@ bool is_entity_valid(Entity);
 
 void destroy_entity(Entity);
 
+/* caution: must only be used by the component declaration macros
+   not for external use */
+void component_added_to_entity(Entity, uint64_t);
+
+/* caution: must only be used by the component declaration macros
+   not for external use */
+void component_removed_from_entity(Entity, uint64_t);
+
 #endif

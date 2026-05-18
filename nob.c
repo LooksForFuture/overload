@@ -1,13 +1,13 @@
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
-#define CC "gcc"
+#define CC "clang"
 #define CFLAGS "-std=c17", "-g"
 #define IFLAGS "-Iinclude/"
-#define LFLAGS "-lSDL2"
-#define WARNINGS "-Wall", "-Wpedantic", "-Wextra", \
-		"-Wdeclaration-after-statement"
-#define SRC_FILES "entity.c", "r_main.c", "transform.c", "main.c"
+#define LFLAGS "-lm", "-lSDL2"
+#define WARNINGS "-Wall", "-Wpedantic", "-Wextra"
+#define SRC_FILES "entity.c", "r_main.c", "transform.c", "srender.c", \
+		"main.c"
 
 #define BIN_DIR "bin"
 #define BIN_FILE "game"
