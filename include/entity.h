@@ -19,11 +19,15 @@ typedef uint16_t EntityGeneration;
 
 void init_entities(void);
 
+void shutdown_entities(void);
+
 Entity create_entity(void);
 
 bool is_entity_valid(Entity);
 
 void destroy_entity(Entity);
+
+void flush_entities(void);
 
 /* caution: must only be used by the component declaration macros
    not for external use */

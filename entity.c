@@ -1,10 +1,10 @@
 #include <entity.h>
 #include <gamedef.h>
+#include <dsa.h>
 #include <all_components.h>
 #include <component_interfaces.h>
 
 #include <assert.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,10 +15,17 @@
 typedef struct {
 	Entity id;
 	bool enabled;
+	bool pending;
 	uint64_t mask;
 } EntityDesc;
 static EntityDesc entities[MAX_ENTITY_COUNT];
 static EntityIndex next_entity = 1;
+
+static struct {
+	Entity *items;
+	size_t count;
+	size_t capacity;
+} destroy_pending; /* entities pending to be destroyed */
 
 void init_entities(void)
 {
@@ -26,14 +33,25 @@ void init_entities(void)
 		entities[i] = (EntityDesc){
 			CREATE_ENTITY(i+1, 0),
 			false,
+			false,
 			0
 		};
 	}
 	entities[MAX_ENTITY_COUNT-1] = (EntityDesc){
 		CREATE_ENTITY(0, 0),
 		false,
+		false,
 		0
 	};
+
+	destroy_pending.items = NULL;
+	destroy_pending.count = 0;
+	destroy_pending.capacity = 0;
+}
+
+void shutdown_entities(void)
+{
+	glut_free(destroy_pending.items);
 }
 
 Entity create_entity(void)
@@ -54,6 +72,7 @@ Entity create_entity(void)
 	new_entity = (EntityDesc){
 		CREATE_ENTITY(next_entity, generation),
 		true,
+		false,
 		0
 	};
 	*entity = new_entity;
@@ -91,12 +110,15 @@ void component_removed_from_entity(Entity ent, uint64_t id)
 void destroy_entity(Entity ent)
 {
 	EntityDesc *entity;
-	EntityIndex next_entity_p = next_entity;
+	/* EntityIndex next_entity_p = next_entity; */
 	if (ENTITY_INDEX(ent) >= MAX_ENTITY_COUNT) return;
 	entity = &entities[ENTITY_INDEX(ent)];
-	if (entity->id != ent) return;
+	if (entity->id != ent || entity->pending) return;
 
-	if (entity->mask != 0) {
+	da_append(&destroy_pending, ent);
+	entity->pending = true;
+
+	/* if (entity->mask != 0) {
 		for (int i = 0; i < COMPONENT_COUNT; i++) {
 			uint64_t mask = pow(2, i);
 			if ((entity->mask & mask) == mask) {
@@ -107,5 +129,36 @@ void destroy_entity(Entity ent)
 
 	next_entity = ENTITY_INDEX(entity->id);
 	entity->id = CREATE_ENTITY(next_entity_p,
-				   ENTITY_GENERATION(entity->id));
+	ENTITY_GENERATION(entity->id)); */
+}
+
+static inline void destroy_entity_immediately(Entity ent)
+{
+	EntityDesc *entity = &entities[ENTITY_INDEX(ent)];
+	EntityIndex next_entity_p = next_entity;
+	if (entity->mask != 0) {
+		for (int i = 0; i < COMPONENT_COUNT; i++) {
+			uint64_t mask = 1<<i;
+			if ((entity->mask & mask) == mask) {
+				component_interfaces[i].rem_entity_immediately(ent);
+			}
+		}
+	}
+
+	next_entity = ENTITY_INDEX(entity->id);
+	entity->id = CREATE_ENTITY(next_entity_p,
+	ENTITY_GENERATION(entity->id));
+}
+
+void flush_entities(void)
+{
+	if (destroy_pending.count == 0) return;
+
+	da_foreach(Entity, ent_p, &destroy_pending) {
+		Entity ent = *ent_p;
+		destroy_entity_immediately(ent);
+
+	}
+
+	destroy_pending.count = 0;
 }

@@ -1,4 +1,5 @@
 #include <gamedef.h>
+#include <glut.h>
 #include <r_main.h>
 
 #include <all_components.h>
@@ -20,9 +21,25 @@ void init_all_components(void)
 }
 #undef X
 
+#define X(name) name##_shutdown();
+void shutdown_all_components(void)
+{
+	ALL_COMPONENTS(X)
+}
+#undef X
+
+#define X(name) name##_flush_entities();
+void flush_all_components(void)
+{
+	ALL_COMPONENTS(X)
+}
+#undef X
+
 void cleanup(void)
 {
+	shutdown_all_components();
 	r_shutdown();
+	shutdown_entities();
 }
 
 int main(void)
@@ -34,6 +51,7 @@ int main(void)
 
 	atexit(cleanup);
 
+	glut_init();
 	r_init();
 	init_entities();
 	init_all_components();
@@ -69,6 +87,9 @@ int main(void)
 			}
 		}
 
+		flush_entities();
+		flush_all_components();
+
 		r_set_draw_color(0, 0, 0, 0);
 		r_clear();
 
@@ -82,9 +103,6 @@ int main(void)
 
 		r_present();
 	}
-
-	destroy_entity(ent1);
-	destroy_entity(ent2);
 
 	return 0;
 }

@@ -7,10 +7,10 @@
 #include <srender.h>
 
 typedef struct {
-	void (*rem_entity)(Entity ent);
+	void (*rem_entity_immediately)(Entity ent);
 } component_interface;
 
-#define X(name) {name##_rem_entity},
+#define X(name) {name##_rem__entity_immediately},
 const component_interface component_interfaces[] = {
 	ALL_COMPONENTS(X)
 };
