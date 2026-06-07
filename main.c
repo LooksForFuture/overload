@@ -1,6 +1,7 @@
 #include <gamedef.h>
 #include <glut.h>
 #include <r_main.h>
+#include <editor.h>
 
 #include <all_components.h>
 #include <entity.h>
@@ -13,6 +14,10 @@
 #include <stdio.h>
 
 #define return_defer(val) do { result = (val); goto defer; } while (0)
+
+#ifndef NO_EDITOR
+static int control_window = 0;
+#endif
 
 #define X(name) name##_init();
 void init_all_components(void)
@@ -56,6 +61,12 @@ int main(void)
 	init_entities();
 	init_all_components();
 
+	#ifndef NO_EDITOR
+	editor_init();
+
+	control_window = editor_new_window("Control");
+	#endif
+
 	ent1 = create_entity();
 	t1 = transform_add(ent1);
 	r1 = srender_add(ent1);
@@ -85,6 +96,10 @@ int main(void)
 				}
 				break;
 			}
+
+			#ifndef NO_EDITOR
+			editor_handle_sdl_event(&event);
+			#endif
 		}
 
 		flush_entities();
@@ -100,6 +115,15 @@ int main(void)
 		r_set_viewport((viewport_t){0, 0, 1, 1, 10});
 		/*r_fill_rect(&(SDL_FRect){0, 0, 1, 1});*/
 		srender_draw_all();
+
+		/* render the editor */
+#ifndef NO_EDITOR
+		r_set_editor_mode(true);
+		r_set_viewport((viewport_t){0, 0, 1, 1, 100});
+		editor_begin_frame();
+		editor_render();
+		r_set_editor_mode(false);
+#endif /* NO_EDITOR */
 
 		r_present();
 	}

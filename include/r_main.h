@@ -24,6 +24,7 @@
  */
 
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 
 /*
   viewport
@@ -41,6 +42,8 @@ typedef struct {
 void r_init(void);
 
 void r_shutdown(void);
+
+void r_set_editor_mode(bool);
 
 /* must be called when the window changes size */
 void r_update_window(void);

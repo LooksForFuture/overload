@@ -2,6 +2,7 @@
 #include <gamedef.h>
 
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -16,6 +17,13 @@ static float start_y = 0.0f;
 static SDL_Rect render_area;
 static viewport_t viewport;
 static float render_unit;
+
+#ifndef NO_EDITOR
+static bool editor_mode = false;
+
+static viewport_t editor_viewport;
+static float editor_render_unit;
+#endif /* NO_EDITOR */
 
 void r_init(void)
 {
@@ -54,6 +62,13 @@ void r_shutdown(void)
 	SDL_Quit();
 }
 
+#ifndef NO_EDITOR
+void r_set_editor_mode(bool b)
+{
+	editor_mode = b;
+}
+#endif
+
 void r_update_window(void)
 {
 	int width, height;
@@ -79,11 +94,29 @@ void r_update_window(void)
 	render_area.h = h;
 	SDL_RenderSetViewport(renderer, &render_area);
 	render_unit = viewport.h * render_area.h / viewport.hlength;
+
+#ifndef NO_EDITOR
+	editor_render_unit = editor_viewport.h *
+		window_height / editor_viewport.hlength;
+#endif
 }
 
 void r_set_viewport(viewport_t view)
 {
 	SDL_Rect coords;
+
+#ifndef NO_EDITOR
+	if (editor_mode) {
+		editor_viewport = view;
+		editor_render_unit = view.h *
+			window_height / view.hlength;
+		coords.x = view.x * window_width;
+		coords.y = view.y * window_height;
+		coords.w = view.w * window_width;
+		coords.h = view.h * window_height;
+		SDL_RenderSetViewport(renderer, &coords);
+	} else {
+#endif
 	viewport = view;
 	render_unit = view.h * render_area.h / view.hlength;
 	coords.x = view.x * render_area.w + start_x;
@@ -91,6 +124,9 @@ void r_set_viewport(viewport_t view)
 	coords.w = view.w * render_area.w;
 	coords.h = view.h * render_area.h;
 	SDL_RenderSetViewport(renderer, &coords);
+#ifndef NO_EDITOR
+	}
+#endif
 }
 
 void r_set_draw_color(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
@@ -106,10 +142,21 @@ void r_clear(void)
 void r_fill_rect(SDL_FRect *coords)
 {
 	SDL_FRect dest;
+#ifndef NO_EDITOR
+	if (editor_mode) {
+		dest.x = coords->x * editor_render_unit;
+		dest.y = coords->y * editor_render_unit;
+		dest.w = coords->w * editor_render_unit;
+		dest.h = coords->h * editor_render_unit;
+	} else {
+#endif
 	dest.x = coords->x * render_unit;
 	dest.y = coords->y * render_unit;
 	dest.w = coords->w * render_unit;
 	dest.h = coords->h * render_unit;
+#ifndef NO_EDITOR
+	}
+#endif
 	SDL_RenderFillRectF(renderer, &dest);
 }
 

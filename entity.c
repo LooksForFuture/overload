@@ -61,7 +61,7 @@ Entity create_entity(void)
 	EntityGeneration generation;
 	EntityDesc new_entity;
 
-	if (next_entity == 0 || next_entity == MAX_ENTITY_COUNT) return 0;
+	if (next_entity==0 || next_entity==MAX_ENTITY_COUNT) return 0;
 	entity = &entities[next_entity];
 	next_entity_p = ENTITY_INDEX(entity->id);
 	assert(next_entity_p != next_entity);
@@ -138,7 +138,7 @@ static inline void destroy_entity_immediately(Entity ent)
 	EntityIndex next_entity_p = next_entity;
 	if (entity->mask != 0) {
 		for (int i = 0; i < COMPONENT_COUNT; i++) {
-			uint64_t mask = 1<<i;
+			uint64_t mask = 1ULL<<i;
 			if ((entity->mask & mask) == mask) {
 				component_interfaces[i].rem_entity_immediately(ent);
 			}
@@ -146,8 +146,12 @@ static inline void destroy_entity_immediately(Entity ent)
 	}
 
 	next_entity = ENTITY_INDEX(entity->id);
-	entity->id = CREATE_ENTITY(next_entity_p,
-	ENTITY_GENERATION(entity->id));
+	entity->id = CREATE_ENTITY(
+		next_entity_p,
+		ENTITY_GENERATION(entity->id));
+	entity->enabled = false;
+	entity->pending = false;
+	entity->mask = 0;
 }
 
 void flush_entities(void)
