@@ -43,7 +43,9 @@ void r_init(void);
 
 void r_shutdown(void);
 
-void r_set_editor_mode(bool);
+SDL_Window *r_get_window(void);
+
+void r_handle_event(SDL_Event *e);
 
 /* must be called when the window changes size */
 void r_update_window(void);

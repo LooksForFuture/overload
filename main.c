@@ -15,10 +15,6 @@
 
 #define return_defer(val) do { result = (val); goto defer; } while (0)
 
-#ifndef NO_EDITOR
-static int control_window = 0;
-#endif
-
 #define X(name) name##_init();
 void init_all_components(void)
 {
@@ -42,6 +38,10 @@ void flush_all_components(void)
 
 void cleanup(void)
 {
+	#ifndef NO_EDITOR
+	editor_shutdown();
+	#endif
+
 	shutdown_all_components();
 	r_shutdown();
 	shutdown_entities();
@@ -63,8 +63,6 @@ int main(void)
 
 	#ifndef NO_EDITOR
 	editor_init();
-
-	control_window = editor_new_window("Control");
 	#endif
 
 	ent1 = create_entity();
@@ -82,25 +80,53 @@ int main(void)
 	srender_set_color(r2, (Vec3){255, 0, 0});
 
 	while (!quit) {
-		SDL_Event event;
-		while (SDL_PollEvent(&event)) {
-			switch (event.type) {
+		SDL_Event e;
+		editor_begin_poll();
+		while (SDL_PollEvent(&e)) {
+			SDL_Window *target_window = NULL;
+			switch (e.type) {
 			case SDL_QUIT:
 				quit = true;
 				break;
+			case SDL_MOUSEMOTION:
+			case SDL_MOUSEBUTTONDOWN:
+			case SDL_MOUSEBUTTONUP:
+			case SDL_MOUSEWHEEL:
+				target_window = SDL_GetWindowFromID(
+					e.button.windowID
+					);
+				break;
+			case SDL_KEYDOWN:
+			case SDL_KEYUP:
+				target_window = SDL_GetWindowFromID(
+					e.window.windowID
+					);
+				break;
 			case SDL_WINDOWEVENT:
-				switch (event.window.event) {
-				case SDL_WINDOWEVENT_SIZE_CHANGED:
-					r_update_window();
+				target_window = SDL_GetWindowFromID(
+					e.window.windowID
+					);
+				switch (e.window.event) {
+				case SDL_WINDOWEVENT_CLOSE:
+					quit = true;
 					break;
 				}
 				break;
+			case SDL_TEXTINPUT:
+				target_window = SDL_GetKeyboardFocus();
+				break;
 			}
 
-			#ifndef NO_EDITOR
-			editor_handle_sdl_event(&event);
-			#endif
+			if (target_window == r_get_window()) {
+				r_handle_event(&e);
+			}
+#ifndef NO_EDITOR
+			else if (target_window == editor_get_window()) {
+				editor_handle_event(&e);
+			}
+#endif
 		}
+		editor_end_poll();
 
 		flush_entities();
 		flush_all_components();
@@ -113,16 +139,18 @@ int main(void)
 		r_fill_rect(&(SDL_FRect){0, 0, ASPECT_RATIO, 1});
 
 		r_set_viewport((viewport_t){0, 0, 1, 1, 10});
-		/*r_fill_rect(&(SDL_FRect){0, 0, 1, 1});*/
 		srender_draw_all();
 
 		/* render the editor */
 #ifndef NO_EDITOR
-		r_set_editor_mode(true);
-		r_set_viewport((viewport_t){0, 0, 1, 1, 100});
-		editor_begin_frame();
+		if (editor_begin("Demo", &(SDL_Rect){30, 30, 150, 250})) {
+			editor_layout_row_dynamic(30, 1);
+			if (editor_button("push me")) {
+				printf("I was pushed\n");
+			}
+		}
+		editor_end();
 		editor_render();
-		r_set_editor_mode(false);
 #endif /* NO_EDITOR */
 
 		r_present();

@@ -1,13 +1,6 @@
 #ifndef NO_EDITOR
 
-/*
-  The focused window is always the one at the end of the stack which
-  means that if we have 4 windows, then the 4th one is the focused one.
-  When the focus changes, we swap the new focused window with the last.
- */
-
 #include <editor.h>
-#include <r_main.h>
 
 #include <SDL2/SDL.h>
 
@@ -15,163 +8,142 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define MAX_EDITOR_WINDOW_COUNT 4
+#define NK_INCLUDE_FIXED_TYPES
+#define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_STANDARD_VARARGS
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+#define NK_INCLUDE_FONT_BAKING
+#define NK_INCLUDE_DEFAULT_FONT
+#define NK_IMPLEMENTATION
+#define NK_SDL_RENDERER_IMPLEMENTATION
+#include <nuklear.h>
+#include <nuklear_sdl_renderer.h>
 
-#define TEXT_HEIGHT 2
-#define GLOBAL_MARGIN 0.1
-#define GLOBAL_PADDING 0.1
+#define WINDOW_WIDTH 900
+#define WINDOW_HEIGHT 600
 
-#define TITLE_BAR_COLOR 165, 165, 165
-#define WIN_BG_COLOR 213, 213, 213
+SDL_Window *win;
+SDL_Renderer *renderer;
 
-typedef struct {
-	float x, y, w, h; //presented in percetage of game window size
-	const char *title;
-	bool is_focused;
-	bool is_dragged;
-	float drag_offset_x, drag_offset_y;
-} Window;
-
-struct {
-	Window windows[MAX_EDITOR_WINDOW_COUNT];
-	int window_capacity;
-	int window_count;
-
-	bool is_dragging;
-
-	/* window width and height */
-	int width;
-	int height;
-
-	//mouse coordinatations
-	int mx, mx_prev;
-	int my, my_prev;
-
-	//mouse buttons
-	bool m[3], m_prev[3];
-} context;
-
-static bool is_point_in_rect(SDL_Rect *rect, int x, int y)
-{
-	return x >= rect->x && x <= rect->x + rect->w &&
-		y >= rect->y && y <= rect->y + rect->h;
-}
+struct nk_context *ctx;
+struct nk_colorf bg;
 
 void editor_init(void)
 {
-	context.window_capacity = MAX_EDITOR_WINDOW_COUNT;
-	context.window_count = 0;
-	context.is_dragging = false;
-	context.mx = 0;
-	context.my = 0;
-	context.m[0] = false;
-	context.m[1] = false;
-	context.m[2] = false;
-	context.m_prev[0] = false;
-	context.m_prev[1] = false;
-	context.m_prev[2] = false;
+	float font_scale = 1;
+
+	win = SDL_CreateWindow("sdl_renderer",
+			       SDL_WINDOWPOS_CENTERED,
+			       SDL_WINDOWPOS_CENTERED,
+			       WINDOW_WIDTH, WINDOW_HEIGHT,
+			       SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI);
+	if (!win) {
+		fprintf(stderr, "failed to create editor window: %s\n",
+			SDL_GetError());
+		exit(1);
+	}
+
+	renderer = SDL_CreateRenderer(win, -1,
+		SDL_RENDERER_ACCELERATED);
+	if (!renderer) {
+		fprintf(stderr, "failed to create editor renderer: %s\n",
+			SDL_GetError());
+		exit(1);
+	}
+
+	{
+		int render_w, render_h;
+		int window_w, window_h;
+		float scale_x, scale_y;
+		SDL_GetRendererOutputSize(renderer, &render_w, &render_h);
+		SDL_GetWindowSize(win, &window_w, &window_h);
+		scale_x = (float)(render_w) / (float)(window_w);
+		scale_y = (float)(render_h) / (float)(window_h);
+		SDL_RenderSetScale(renderer, scale_x, scale_y);
+		font_scale = scale_y;
+	}
+
+	ctx = nk_sdl_init(win, renderer);
+	{
+		struct nk_font_atlas *atlas;
+		struct nk_font_config config = nk_font_config(0);
+		struct nk_font *font;
+
+		nk_sdl_font_stash_begin(&atlas);
+		font = nk_font_atlas_add_default(atlas, 13 * font_scale,
+						 &config);
+		nk_sdl_font_stash_end();
+		font->handle.height /= font_scale;
+		nk_style_set_font(ctx, &font->handle);
+	}
+
+	bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
 }
 
-int editor_new_window(const char *title)
+void editor_shutdown(void)
 {
-	int index = context.window_count++;
-	Window *win = &context.windows[index];
-	win->title = title;
-	win->x = 0;
-	win->y = 0;
-	win->w = 40;
-	win->h = 64;
-	win->is_focused = true;
-	win->is_dragged = false;
-
-	return index;
+	nk_sdl_shutdown();
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(win);
 }
 
-void editor_handle_sdl_event(SDL_Event *e)
-{
-	switch (e->type) {
-	case SDL_MOUSEMOTION: {
-		context.mx_prev = context.mx;
-		context.mx = e->motion.x;
-		context.my_prev = context.my;
-		context.my = e->motion.y;
-		break;
-	}
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_MOUSEBUTTONUP: {
-		switch (e->button.button) {
-		case SDL_BUTTON_LEFT:
-			context.m[0] = e->type == SDL_MOUSEBUTTONDOWN ?
-				1: 0; break;
-		case SDL_BUTTON_RIGHT:
-			context.m[2] = e->type == SDL_MOUSEBUTTONDOWN ?
-				1: 0; break;
-		}
-	}
-		break;
-	case SDL_WINDOWEVENT: {
-		switch (e->window.event) {
-		case SDL_WINDOWEVENT_SIZE_CHANGED:
-			context.width = e->window.data1;
-			context.height = e->window.data2;
-			break;
-		}
-		break;
-	}
-	}
+SDL_Window *editor_get_window(void) {
+	return win;
 }
 
-void editor_begin_frame(void)
+void editor_begin_poll(void)
 {
-	if (context.m[0] && !context.m_prev[0]) {
-		int focused_window = -1;
-		for (int i = 0; i < context.window_count; i++) {
-			Window *win = &context.windows[i];
-			SDL_Rect rect;
-			rect.x = win->x * context.width;
-			rect.y = win->y * context.height;
-			rect.w = win->w * context.width;
-			rect.h = win->h * context.height;
+	nk_input_begin(ctx);
+}
 
-			if (is_point_in_rect(&rect,
-					     context.mx,
-					     context.my))
-				focused_window = i;
-		}
-		if (focused_window > -1 &&
-		    focused_window != context.window_count-1) {
-			Window win = context.windows[
-				context.window_count - 1];
-			context.windows[context.window_count - 1] =
-				context.windows[focused_window];
-			context.windows[focused_window] = win;
-		}
-	}
+void editor_handle_event(SDL_Event *e)
+{
+	nk_sdl_handle_event(e);
+}
+
+void editor_end_poll(void)
+{
+	nk_sdl_handle_grab();
+	nk_input_end(ctx);
 }
 
 void editor_render(void)
 {
-	for (int i = 0; i < context.window_count; i++) {
-		Window *win = &context.windows[i];
+	SDL_SetRenderDrawColor(renderer, bg.r * 255,bg.g * 255,
+			       bg.b * 255, bg.a * 255);
+	SDL_RenderClear(renderer);
+	nk_sdl_render(NK_ANTI_ALIASING_ON);
+	SDL_RenderPresent(renderer);
+}
 
-		float width = win->w + 2*GLOBAL_MARGIN;
+bool editor_begin(const char *title, SDL_Rect *rect)
+{
+	return nk_begin(ctx, title, nk_rect(rect->x, rect->y,
+					    rect->w,rect->h),
+		NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+			NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE);
+}
 
-		r_set_draw_color(TITLE_BAR_COLOR, 255);
-		float title_height = TEXT_HEIGHT + 2*GLOBAL_MARGIN;
-		SDL_FRect title_bar = (SDL_FRect){win->x, win->y,
-			width, title_height};
-		r_fill_rect(&title_bar);
+void editor_end()
+{
+	nk_end(ctx);
+}
 
-		r_set_draw_color(WIN_BG_COLOR, 255);
-		SDL_FRect win_rect = (SDL_FRect){win->x,
-			win->y + title_height,
-			width, win->h + 2*GLOBAL_MARGIN};
-		r_fill_rect(&win_rect);
-	}
+void editor_layout_row_dynamic(int height, int count)
+{
+	nk_layout_row_dynamic(ctx, height, count);
+}
+
+bool editor_button(const char *title)
+{
+	return nk_button_label(ctx, title);
 }
 
 #else /* NO_EDITOR */
 
 void editor_init(void) {}
+
+void editor_shutdown(void) {}
 
 #endif /* NO_EDITOR */

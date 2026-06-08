@@ -18,17 +18,11 @@ static SDL_Rect render_area;
 static viewport_t viewport;
 static float render_unit;
 
-#ifndef NO_EDITOR
-static bool editor_mode = false;
-
-static viewport_t editor_viewport;
-static float editor_render_unit;
-#endif /* NO_EDITOR */
-
 void r_init(void)
 {
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		fprintf(stderr, "failed to initialize sdl\n");
+		exit(1);
 	}
 
 	window = SDL_CreateWindow(
@@ -44,8 +38,7 @@ void r_init(void)
 	}
 
 	renderer = SDL_CreateRenderer(window, -1,
-				      SDL_RENDERER_ACCELERATED |
-				      SDL_RENDERER_PRESENTVSYNC);
+				      SDL_RENDERER_ACCELERATED);
 	if (!renderer) {
 		fprintf(stderr, "failed to create renderer\n");
 		exit(1);
@@ -62,12 +55,22 @@ void r_shutdown(void)
 	SDL_Quit();
 }
 
-#ifndef NO_EDITOR
-void r_set_editor_mode(bool b)
+SDL_Window *r_get_window(void)
 {
-	editor_mode = b;
+	return window;
 }
-#endif
+
+void r_handle_event(SDL_Event *e)
+{
+	switch (e->type) {
+	case SDL_WINDOWEVENT:
+		switch(e->window.event)
+		case SDL_WINDOWEVENT_SIZE_CHANGED:
+			r_update_window();
+			break;
+		break;
+	}
+}
 
 void r_update_window(void)
 {
@@ -94,29 +97,12 @@ void r_update_window(void)
 	render_area.h = h;
 	SDL_RenderSetViewport(renderer, &render_area);
 	render_unit = viewport.h * render_area.h / viewport.hlength;
-
-#ifndef NO_EDITOR
-	editor_render_unit = editor_viewport.h *
-		window_height / editor_viewport.hlength;
-#endif
 }
 
 void r_set_viewport(viewport_t view)
 {
 	SDL_Rect coords;
 
-#ifndef NO_EDITOR
-	if (editor_mode) {
-		editor_viewport = view;
-		editor_render_unit = view.h *
-			window_height / view.hlength;
-		coords.x = view.x * window_width;
-		coords.y = view.y * window_height;
-		coords.w = view.w * window_width;
-		coords.h = view.h * window_height;
-		SDL_RenderSetViewport(renderer, &coords);
-	} else {
-#endif
 	viewport = view;
 	render_unit = view.h * render_area.h / view.hlength;
 	coords.x = view.x * render_area.w + start_x;
@@ -124,9 +110,6 @@ void r_set_viewport(viewport_t view)
 	coords.w = view.w * render_area.w;
 	coords.h = view.h * render_area.h;
 	SDL_RenderSetViewport(renderer, &coords);
-#ifndef NO_EDITOR
-	}
-#endif
 }
 
 void r_set_draw_color(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
@@ -142,21 +125,12 @@ void r_clear(void)
 void r_fill_rect(SDL_FRect *coords)
 {
 	SDL_FRect dest;
-#ifndef NO_EDITOR
-	if (editor_mode) {
-		dest.x = coords->x * editor_render_unit;
-		dest.y = coords->y * editor_render_unit;
-		dest.w = coords->w * editor_render_unit;
-		dest.h = coords->h * editor_render_unit;
-	} else {
-#endif
+
 	dest.x = coords->x * render_unit;
 	dest.y = coords->y * render_unit;
 	dest.w = coords->w * render_unit;
 	dest.h = coords->h * render_unit;
-#ifndef NO_EDITOR
-	}
-#endif
+
 	SDL_RenderFillRectF(renderer, &dest);
 }
 
