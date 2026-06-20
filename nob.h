@@ -4,36 +4,57 @@
 /*
   My own implementation of nob.h
 
-  This has been written by LooksForFuture(Mohammad Armin Niknami),
-  by watching "tsoding daily" videos and some personal explorations, during
-  internet outage. This is more of a recreational programming project :D
-  And isn't a fully personal innovation. Something like 50-50 between
-  rexim and personal ideas.
-  Maybe I would write my own build system some time later. I'm currently
-  inspired by functional programming style. Who knows?
-  Anyway, this project uses the same license that Tsoding's nob.h uses.
-  Have fun.
+  This has been written by LooksForFuture(Mohammad Armin Niknami), by watching "tsoding daily" videos and some personal explorations, during internet outage. This is more of a recreational programming project :D
+  It is'sn't a fully personal innovation. Something like 50-50 between rexim's and my personal ideas.
+  Anyway, this project uses the same license that Tsoding's nob.h uses. Have fun.
  */
 
+#ifndef NOBDEF
+/*
+  Goes before declarations and definitions of the nob functions. Useful to `#define NOBDEF static inline`
+   if your source code is a single file and you want the compiler to remove unused functions.
+*/
+#define NOBDEF
+#endif /* NOBDEF */
+
+#ifndef NOB_ASSERT
 #include <assert.h>
+#define NOB_ASSERT assert
+#endif /* NOB_ASSERT */
+
+#ifndef NOB_REALLOC
+#include <stdlib.h>
+#define NOB_REALLOC realloc
+#endif /* NOB_REALLOC */
+
+#ifndef NOB_FREE
+#include <stdlib.h>
+#define NOB_FREE free
+#endif /* NOB_FREE */
+
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#    define WIN32_LEAN_AND_MEAN
+#    include <windows.h>
 #else
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#    include <fcntl.h>
+#    include <sys/stat.h>
+#    include <sys/types.h>
+#    include <sys/wait.h>
+#    include <unistd.h>
 #endif //_WIN32
+
+#ifdef _WIN32
+#    define NOB_LINE_END "\r\n"
+#else
+#    define NOB_LINE_END "\n"
+#endif
 
 #define nob_return_defer(val) do { result = (val); goto defer; } while (0)
 
@@ -43,7 +64,7 @@ typedef enum {
 	NOB_ERROR,
 } Nob_Log_Level;
 
-void nob_log(Nob_Log_Level, char *, ...);
+NOBDEF void nob_log(Nob_Log_Level, char *, ...);
 
 #ifndef NOB_DA_INIT_CAP
 #define NOB_DA_INIT_CAP 64
@@ -96,17 +117,21 @@ typedef struct {
 	} while (0)
 #define nob_str_append_null(sb) nob_da_append_many(sb, "", 1)
 
-bool nob_cd(const char *);
+NOBDEF bool nob_cd(const char *);
 
-bool nob_mkdir_if_not_exists(const char *);
+NOBDEF bool nob_mkdir_if_not_exists(const char *);
 
-bool nob_copy_file(const char *, const char *);
+NOBDEF int nob_file_exists(const char *);
 
-bool nob_rename(const char *, const char *);
+NOBDEF bool nob_copy_file(const char *, const char *);
 
-int nob_is_file_newer(const char *, const char *);
+NOBDEF bool nob_rename(const char *, const char *);
 
-bool nob_write_entire_file(const char *, void *, size_t);
+NOBDEF int nob_is_file_newer(const char *, const char *);
+
+NOBDEF bool nob_write_entire_file(const char *, const void *, size_t);
+
+NOBDEF bool nob_read_entire_file(const char *, Nob_String *);
 
 #ifdef _WIN32
 typedef HANDLE Nob_Proc;
@@ -116,7 +141,7 @@ typedef int Nob_Proc;
 #define NOB_INVALID_PROC -1
 #endif //_WIN32
 
-bool nob_proc_wait(Nob_Proc);
+NOBDEF bool nob_proc_wait(Nob_Proc);
 
 typedef struct {
 	const char **items;
@@ -124,17 +149,17 @@ typedef struct {
 	size_t capacity;
 } Nob_Cmd;
 
-void nob_cmd_render(Nob_Cmd, Nob_String *);
+NOBDEF void nob_cmd_render(Nob_Cmd, Nob_String *);
 
-void nob_cmd_append_null(Nob_Cmd *, ...);
+NOBDEF void nob_cmd_append_null(Nob_Cmd *, ...);
 
 #define nob_cmd_append(cmd, ...) nob_cmd_append_null(cmd, __VA_ARGS__, NULL)
 
-Nob_Proc nob_cmd_run_async(Nob_Cmd);
+NOBDEF Nob_Proc nob_cmd_run_async(Nob_Cmd);
 
-bool nob_cmd_run_sync(Nob_Cmd);
+NOBDEF bool nob_cmd_run_sync(Nob_Cmd);
 
-bool nob_cmd(const char*, ...);
+NOBDEF bool nob_cmd(const char*, ...);
 
 #define NOB_CMD(...) nob_cmd(__VA_ARGS__, NULL)
 
@@ -167,7 +192,7 @@ bool nob_cmd(const char*, ...);
 
 #ifdef NOB_IMPLEMENTATION
 
-void nob_log(Nob_Log_Level level, char *fmt, ...)
+NOBDEF void nob_log(Nob_Log_Level level, char *fmt, ...)
 {
 	FILE *restrict stream = NULL;
 	char *header = NULL;
@@ -195,22 +220,28 @@ void nob_log(Nob_Log_Level level, char *fmt, ...)
 	fprintf(stream, "\n");
 }
 
-bool nob_cd(const char *path)
+NOBDEF bool nob_cd(const char *path)
 {
-	int result = chdir(path);
-	if (result) {
-		nob_log(NOB_ERROR, "could not change directory to '%s': %s",
-			path, strerror(errno));
+	nob_log(NOB_INFO, "setting current directory to '%s'", path);
+#ifdef _WIN32
+	if (!SetCurrentDirectory(path)) {
+		nob_log(NOB_ERROR, "could not set current directory to %s: %s", path, nob_win32_error_message(GetLastError()));
+		return false
+	}
+	return true;
+#else
+	if (chdir(path) < 0) {
+		nob_log(NOB_ERROR, "could not set current directory to '%s': %s", path, strerror(errno));
 		return false;
 	}
-	nob_log(NOB_INFO, "changed directory to '%s'", path);
 	return true;
+#endif
 }
 
-bool nob_mkdir_if_not_exists(const char *path)
+NOBDEF bool nob_mkdir_if_not_exists(const char *path)
 {
 #ifdef _WIN32
-	int result = mkdir(path);
+	int result = _mkdir(path);
 #else
 	int result = mkdir(path, 0755);
 #endif
@@ -227,7 +258,19 @@ bool nob_mkdir_if_not_exists(const char *path)
 	return true;
 }
 
-bool nob_copy_file(const char *src_path, const char *dst_path)
+// RETURNS:
+//  0 - file does not exists
+//  1 - file exists
+NOBDEF int nob_file_exists(const char *path)
+{
+#ifdef _WIN32
+	return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
+#else
+	return access(path, F_OK) == 0;
+#endif
+}
+
+NOBDEF bool nob_copy_file(const char *src_path, const char *dst_path)
 {
 	nob_log(NOB_INFO, "Copying %s -> %s", src_path, dst_path);
 #ifdef _WIN32
@@ -240,7 +283,7 @@ bool nob_copy_file(const char *src_path, const char *dst_path)
 	int src_fd = -1;
 	int dst_fd = -1;
 	size_t buf_size = 32 * 1024;
-	char *buf = realloc(NULL, buf_size);
+	char *buf = NOB_REALLOC(NULL, buf_size);
 	assert(buf != NULL && "Looks like you're out of memo");
 	bool result = true;
 
@@ -257,9 +300,9 @@ bool nob_copy_file(const char *src_path, const char *dst_path)
 		nob_return_defer(false);
 	}
 
-	dst_fd = open(dst_path, O_CREAT, O_TRUNC, O_WRONLY, src_stat.st_mode);
+	dst_fd = open(dst_path, O_CREAT | O_TRUNC | O_WRONLY, src_stat.st_mode);
 	if (dst_fd < 0) {
-		nob_log(NOB_ERROR, "Could not create file %s:%s",
+		nob_log(NOB_ERROR, "Could not create file %s: %s",
 			dst_path, strerror(errno));
 		nob_return_defer(false);
 	}
@@ -285,24 +328,34 @@ bool nob_copy_file(const char *src_path, const char *dst_path)
 	}
 
 defer:
-	free(buf);
+	NOB_FREE(buf);
 	close(src_fd);
 	close(dst_fd);
 	return result;
 #endif
 }
 
-bool nob_rename(const char *old_path, const char *new_path)
+NOBDEF bool nob_rename(const char *old_path, const char *new_path)
 {
 	nob_log(NOB_INFO, "Renaming %s -> %s", old_path, new_path);
-	if (rename(old_path, new_path) < 0) {
-		nob_log(NOB_ERROR, "Could not rename file: %s", strerror(errno));
+#ifdef _WIN32
+	if (!MoveFileEx(old_path, new_path, MOVEFILE_REPLACE_EXISTING)) {
+		nob_log(NOB_ERROR, "could not rename %s to %s: %s",
+			old_path, new_path,
+			nob_win32_error_message(GetLastError()));
 		return false;
 	}
+#else
+	if (rename(old_path, new_path) < 0) {
+		nob_log(NOB_ERROR, "Could not rename %s to %s: %s",
+			old_path, new_path, strerror(errno));
+		return false;
+	}
+#endif
 	return true;
 }
 
-int nob_is_file_newer(const char *file_a, const char *file_b)
+NOBDEF int nob_is_file_newer(const char *file_a, const char *file_b)
 {
 	struct stat stat_a;
 	struct stat stat_b;
@@ -324,13 +377,14 @@ int nob_is_file_newer(const char *file_a, const char *file_b)
 	else return 0;
 }
 
-bool nob_read_entire_file(const char *path, Nob_String *str)
+NOBDEF bool nob_read_entire_file(const char *path, Nob_String *str)
 {
 	bool result = true;
 
 	FILE *f = fopen(path, "rb");
 	if (f == NULL) {
-		nob_log(NOB_ERROR, "Could not open file %s for reading: %s",
+		nob_log(NOB_ERROR,
+			"Could not open file %s for reading: %s",
 			path, strerror(errno));
 		nob_return_defer(false);
 	}
@@ -342,7 +396,7 @@ defer:
 	return result;
 }
 
-bool nob_write_entire_file(const char *path, void *data, size_t size)
+NOBDEF bool nob_write_entire_file(const char *path, const void *data, size_t size)
 {
 	bool result = true;
 
@@ -353,11 +407,12 @@ bool nob_write_entire_file(const char *path, void *data, size_t size)
 		nob_return_defer(false);
 	}
 
-	char *buf = data;
+	const char *buf = data;
 	while (size > 0) {
 		size_t n = fwrite(buf, 1, size, f);
 		if (ferror(f)) {
-			nob_log(NOB_ERROR, "Could not write into file %s: %s",
+			nob_log(NOB_ERROR,
+				"Could not write into file %s: %s",
 				path, strerror(errno));
 			nob_return_defer(false);
 		}
@@ -370,7 +425,7 @@ defer:
 	return result;
 }
 
-bool nob_proc_wait(Nob_Proc p)
+NOBDEF bool nob_proc_wait(Nob_Proc p)
 {
 	for (;;) {
 		int wstatus = 0;
@@ -398,7 +453,7 @@ bool nob_proc_wait(Nob_Proc p)
 	return true;
 }
 
-void nob_cmd_render(Nob_Cmd cmd, Nob_String *render)
+NOBDEF void nob_cmd_render(Nob_Cmd cmd, Nob_String *render)
 {
 	nob_da_foreach(const char *, arg, &cmd) {
 		nob_str_append_cstr(render, *arg);
@@ -406,7 +461,7 @@ void nob_cmd_render(Nob_Cmd cmd, Nob_String *render)
 	}
 }
 
-void nob_cmd_append_null(Nob_Cmd *cmd, ...)
+NOBDEF void nob_cmd_append_null(Nob_Cmd *cmd, ...)
 {
 	va_list args;
 	va_start(args, cmd);
@@ -420,7 +475,7 @@ void nob_cmd_append_null(Nob_Cmd *cmd, ...)
 	va_end(args);
 }
 
-Nob_Proc nob_cmd_run_async(Nob_Cmd cmd)
+NOBDEF Nob_Proc nob_cmd_run_async(Nob_Cmd cmd)
 {
 	Nob_String str = {0};
 	nob_cmd_render(cmd, &str);
@@ -445,14 +500,14 @@ Nob_Proc nob_cmd_run_async(Nob_Cmd cmd)
 	return cpid;
 }
 
-bool nob_cmd_run_sync(Nob_Cmd cmd)
+NOBDEF bool nob_cmd_run_sync(Nob_Cmd cmd)
 {
 	Nob_Proc p = nob_cmd_run_async(cmd);
 	if (p == NOB_INVALID_PROC) return false;
 	return nob_proc_wait(p);
 }
 
-bool nob_cmd(const char *arg0, ...)
+NOBDEF bool nob_cmd(const char *arg0, ...)
 {
 	Nob_Cmd cmd = {0};
 	nob_da_append(&cmd, arg0);
