@@ -27,6 +27,8 @@ static struct {
 	size_t capacity;
 } destroy_pending; /* entities pending to be destroyed */
 
+static const component_interface *interfaces;
+
 void init_entities(void)
 {
 	for (int i = 0; i < MAX_ENTITY_COUNT - 1; i++) {
@@ -47,6 +49,8 @@ void init_entities(void)
 	destroy_pending.items = NULL;
 	destroy_pending.count = 0;
 	destroy_pending.capacity = 0;
+
+	interfaces = get_component_interfaces();
 }
 
 void shutdown_entities(void)
@@ -140,7 +144,8 @@ static inline void destroy_entity_immediately(Entity ent)
 		for (int i = 0; i < COMPONENT_COUNT; i++) {
 			uint64_t mask = 1ULL<<i;
 			if ((entity->mask & mask) == mask) {
-				component_interfaces[i].rem_entity_immediately(ent);
+				interfaces[i].
+					rem_entity_immediately(ent);
 			}
 		}
 	}
@@ -165,4 +170,14 @@ void flush_entities(void)
 	}
 
 	destroy_pending.count = 0;
+}
+
+uint64_t get_entity_component_mask(Entity ent)
+{
+	EntityDesc *entity;
+	if (ENTITY_INDEX(ent) >= MAX_ENTITY_COUNT) return 0;
+	entity = &entities[ENTITY_INDEX(ent)];
+	if (entity->id != ent) return 0;
+
+	return entity->mask;
 }

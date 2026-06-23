@@ -50,9 +50,9 @@ void cleanup(void)
 int main(void)
 {
 	bool quit = false;
-	Entity ent1, ent2;
-	transform t1, t2;
-	srender r1, r2;
+	Entity ent1, ent2, player;
+	transform t1, t2, t3;
+	srender r1, r2, r3;
 
 	atexit(cleanup);
 
@@ -78,6 +78,13 @@ int main(void)
 	transform_set_position(t2, (Vec2){0, 0});
 	transform_set_scale(t2, (Vec2){1, 1});
 	srender_set_color(r2, (Vec3){255, 0, 0});
+
+	player = create_entity();
+	t3 = transform_add(player);
+	r3 = srender_add(player);
+	transform_set_position(t3, (Vec2){0, 1});
+	transform_set_scale(t3, (Vec2){1, 1});
+	srender_set_color(r3, (Vec3){0, 255, 0});
 
 	while (!quit) {
 		SDL_Event e;
@@ -141,15 +148,8 @@ int main(void)
 		r_set_viewport((viewport_t){0, 0, 1, 1, 10});
 		srender_draw_all();
 
-		/* render the editor */
-#ifndef NO_EDITOR
-		if (editor_begin("Demo", &(SDL_Rect){30, 30, 150, 250})) {
-			editor_layout_row_dynamic(30, 1);
-			if (editor_button("push me")) {
-				printf("I was pushed\n");
-			}
-		}
-		editor_end();
+#ifndef NO_EDITOR /* the editor */
+		inspector_inspect(player);
 		editor_render();
 #endif /* NO_EDITOR */
 

@@ -1,13 +1,15 @@
-#ifndef NO_EDITOR
-
 #include <editor.h>
+
+#ifndef NO_EDITOR
 
 #include <SDL2/SDL.h>
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
+#define NK_API static inline
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
 #define NK_INCLUDE_STANDARD_VARARGS
@@ -88,6 +90,14 @@ void editor_shutdown(void)
 	SDL_DestroyWindow(win);
 }
 
+int editor_strlen(const char *str)
+{
+    int siz = 0;
+    assert(str);
+    while (str && *str++ != '\0') siz++;
+    return siz;
+}
+
 SDL_Window *editor_get_window(void) {
 	return win;
 }
@@ -130,14 +140,48 @@ void editor_end()
 	nk_end(ctx);
 }
 
+bool editor_tree_push_hashed(enum ed_tree_type type,
+			     const char *title,
+			     enum ed_collapse_states state,
+			     const char *hash, int len, int line)
+{
+	enum nk_tree_type tree_type = type == ED_TREE_NODE ?
+		NK_TREE_NODE : NK_TREE_TAB;
+	enum nk_collapse_states coll_type = state == ED_MINIMIZED ?
+		NK_MINIMIZED : NK_MAXIMIZED;
+	return nk_tree_base(ctx, tree_type, 0, title, coll_type,
+			    hash, len, line);
+}
+
+void editor_tree_pop(void)
+{
+	nk_tree_pop(ctx);
+}
+
 void editor_layout_row_dynamic(int height, int count)
 {
 	nk_layout_row_dynamic(ctx, height, count);
 }
 
+void editor_label(const char *str, int align)
+{
+	switch (align) {
+	case ED_ALIGN_LEFT: nk_label(ctx, str, NK_TEXT_LEFT); break;
+	case ED_ALIGN_CENTER: nk_label(ctx, str, NK_TEXT_CENTERED); break;
+	case ED_ALIGN_RIGHT: nk_label(ctx, str, NK_TEXT_RIGHT); break;
+	}
+}
+
 bool editor_button(const char *title)
 {
 	return nk_button_label(ctx, title);
+}
+
+bool editor_property_float(const char *name, float min,
+			   float *f, float max)
+{
+	return nk_property_float(ctx, name, min, f, max,
+				 0.001, 0.001);
 }
 
 #else /* NO_EDITOR */

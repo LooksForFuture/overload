@@ -37,4 +37,6 @@ void component_added_to_entity(Entity, uint64_t);
    not for external use */
 void component_removed_from_entity(Entity, uint64_t);
 
+uint64_t get_entity_component_mask(Entity);
+
 #endif

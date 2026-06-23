@@ -5,7 +5,10 @@
 
 #include <transform.h>
 
-static decl_component_storage(srender, SRENDER_FIELDS)
+static decl_component_storage(
+	srender,
+	SRENDER_PUBLIC_FIELDS,
+	SRENDER_PUBLIC_FIELDS)
 
 static inline void srender_init_private(void) {}
 static inline void srender_shutdown_private(void) {}

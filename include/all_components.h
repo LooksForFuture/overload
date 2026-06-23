@@ -1,8 +1,6 @@
 #ifndef ALL_COMPONENTS_H
 #define ALL_COMPONENTS_H
 
-#include <entity.h>
-
 #define ALL_COMPONENTS(F) \
 	F(transform) \
 	F(srender)

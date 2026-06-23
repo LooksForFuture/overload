@@ -6,7 +6,36 @@
 #include <all_components.h>
 #include <dsa.h>
 
+#ifndef NO_EDITOR
+#include <editor.h>
+#include <inspector.h>
+#endif
+
 #include <stddef.h>
+
+#ifndef NO_EDITOR
+
+#define def_component_inspector(name) void \
+	name##_inspector_default(Entity)
+
+#define decl_component_inspector(name, public_fields) \
+	void name##_inspector_default(Entity ent) { \
+		if (editor_tree_push(ED_TREE_NODE, \
+				     #name, ED_MINIMIZED)) { \
+			name handle = name##_get(ent); \
+			editor_layout_row_dynamic(0, 1); \
+			editor_label(#name, ED_ALIGN_LEFT); \
+			public_fields(component_field_inspector); \
+			editor_tree_pop(); \
+		} \
+	}
+#else
+
+#define def_component_inspector(name)
+
+#define decl_component_inspector(name, public_fields)
+
+#endif /* NO_EDITOR */
 
 #define component_getset_fields(component, type, name) \
 	type component##_##name(component); \
@@ -25,13 +54,24 @@
 	void name##_rem_entity(Entity); \
 	void name##_rem_entity_immediately(Entity); \
 	void name##_flush_entities(void); \
-	fields_f(component_getset_fields)
+	void name##_inspector_default(Entity);	\
+	fields_f(component_getset_fields); \
+	def_component_inspector(name)
 
 #define component_copy_last_to_index(component, type, name) \
 	component##_data.name[index] = \
 		component##_data.name[component##_data.count]
 
-#define decl_component_storage(name, fields_f) \
+
+#define component_field_inspector(component, type, name) { \
+		editor_layout_row_dynamic(0, 2); \
+		editor_label(#name":", ED_ALIGN_RIGHT); \
+		editor_label(#type, ED_ALIGN_LEFT); \
+		const type *p = &component##_data.name[handle.id]; \
+		type##_inspector_widget(p); \
+	}
+
+#define decl_component_storage(name, public_fields, fields_f) \
 	struct { \
 		int count; \
 		struct { EntityIndex *items; size_t count; \
@@ -128,6 +168,7 @@
 			name##_rem_from_index_immediate(ent, index); \
 		} \
 		name##_data.rem_pending.count = 0; \
-	}
+	} \
+	decl_component_inspector(name, public_fields)
 
 #endif /* COMPONENT_H */

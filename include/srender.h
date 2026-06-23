@@ -3,11 +3,11 @@
 
 #include <transform.h>
 
-#define SRENDER_FIELDS(field) \
+#define SRENDER_PUBLIC_FIELDS(field) \
 	field(srender, int, sprite); \
 	field(srender, Vec3, color)
 
-decl_component(srender, SRENDER_FIELDS);
+decl_component(srender, SRENDER_PUBLIC_FIELDS);
 
 void srender_draw_all(void);
 

@@ -2,7 +2,9 @@
 #include <entity.h>
 #include <component.h>
 
-static decl_component_storage(transform, TRANSFORM_FIELDS)
+static decl_component_storage(transform,
+			      TRANSFORM_PUBLIC_FIELDS,
+			      TRANSFORM_PUBLIC_FIELDS)
 
 static inline void transform_init_private(void) {}
 static inline void transform_shutdown_private(void) {}

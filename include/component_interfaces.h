@@ -8,12 +8,9 @@
 
 typedef struct {
 	void (*rem_entity_immediately)(Entity ent);
+	void (*inspector_default)(Entity ent);
 } component_interface;
 
-#define X(name) {name##_rem_entity_immediately},
-const component_interface component_interfaces[] = {
-	ALL_COMPONENTS(X)
-};
-#undef X
+const component_interface *get_component_interfaces(void);
 
 #endif /* COMPONENT_INTERFACES_H */
