@@ -163,7 +163,7 @@ void flush_entities(void)
 {
 	if (destroy_pending.count == 0) return;
 
-	da_foreach(Entity, ent_p, &destroy_pending) {
+	arr_foreach(Entity, ent_p, &destroy_pending) {
 		Entity ent = *ent_p;
 		destroy_entity_immediately(ent);
 

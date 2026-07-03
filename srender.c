@@ -2,6 +2,7 @@
 #include <entity.h>
 #include <component.h>
 #include <r_main.h>
+#include <gmath.h>
 
 #include <transform.h>
 
@@ -45,7 +46,7 @@ void srender_set_color(srender handle, Vec3 new_color)
 	srender_data.color[handle.id] = new_color;
 }
 
-void srender_draw_all(void)
+void srender_draw_all(Vec2 camera)
 {
 	for (int i = 1; i <= srender_data.count; i++) {
 		transform t;
@@ -59,6 +60,11 @@ void srender_draw_all(void)
 		p = transform_position(t);
 		s = transform_scale(t);
 		r_set_draw_color(color.x, color.y ,color.z, 255);
-		r_fill_rect(&(SDL_FRect){p.x, p.y, s.x, s.y});
+		r_fill_rect(&(SDL_FRect){
+				p.x + GAME_VIEW_WIDTH / 2 -
+				s.x / 2 - camera.x,
+				p.y + GAME_VIEW_HEIGHT / 2 -
+				s.y / 2 - camera.y,
+				s.x, s.y});
 	}
 }

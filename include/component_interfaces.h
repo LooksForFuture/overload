@@ -2,9 +2,7 @@
 #define COMPONENT_INTERFACES_H
 
 #include <all_components.h>
-
-#include <transform.h>
-#include <srender.h>
+#include <entity.h>
 
 typedef struct {
 	void (*rem_entity_immediately)(Entity ent);
@@ -12,5 +10,11 @@ typedef struct {
 } component_interface;
 
 const component_interface *get_component_interfaces(void);
+
+void init_all_components(void);
+
+void shutdown_all_components(void);
+
+void flush_all_components(void);
 
 #endif /* COMPONENT_INTERFACES_H */

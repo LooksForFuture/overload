@@ -39,7 +39,8 @@ void editor_init(void)
 			       SDL_WINDOWPOS_CENTERED,
 			       SDL_WINDOWPOS_CENTERED,
 			       WINDOW_WIDTH, WINDOW_HEIGHT,
-			       SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI);
+			       SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI|
+			       SDL_WINDOW_RESIZABLE);
 	if (!win) {
 		fprintf(stderr, "failed to create editor window: %s\n",
 			SDL_GetError());

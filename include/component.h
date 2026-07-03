@@ -13,6 +13,8 @@
 
 #include <stddef.h>
 
+#define COMP_REM_Q_CAP 64
+
 #ifndef NO_EDITOR
 
 #define def_component_inspector(name) void \
@@ -92,12 +94,11 @@
 		name##_init_private(); \
 		name##_data.rem_pending.items = 0; \
 		name##_data.rem_pending.count = 0; \
-		name##_data.rem_pending.capacity = 0; \
+		name##_data.rem_pending.capacity = COMP_REM_Q_CAP; \
 	} \
 	static inline void name##_shutdown_private(void); \
 	void name##_shutdown(void) { \
 		name##_shutdown_private(); \
-		glut_free(name##_data.rem_pending.items); \
 	} \
 	\
 	static inline void name##_add_private(Entity, EntityIndex); \
@@ -132,7 +133,7 @@
 		if (index == 0 || \
 		    name##_data.pending_remove[index]) return;	\
 		\
-		da_append(&name##_data.rem_pending, index); \
+		fa_append(&name##_data.rem_pending, index); \
 		name##_data.pending_remove[index] = true; \
 	} \
 	\
@@ -160,7 +161,7 @@
 	\
 	void name##_flush_entities(void) { \
 		if (name##_data.rem_pending.count == 0) return; \
-		da_foreach(EntityIndex, index_p, \
+		arr_foreach(EntityIndex, index_p, \
 			   &name##_data.rem_pending) {	\
 			EntityIndex index = *index_p; \
 			Entity ent = name##_data.rev_map[index]; \

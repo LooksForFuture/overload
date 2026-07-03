@@ -3,7 +3,10 @@
 
 #define ALL_COMPONENTS(F) \
 	F(transform) \
-	F(srender)
+	F(srender) \
+	F(collider) \
+	F(intent) \
+	F(actuator)
 
 #define X(name) COMPONENT_##name,
 enum {

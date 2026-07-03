@@ -6,9 +6,10 @@
 #define IFLAGS "-Iinclude/"
 #define LFLAGS "-lm", "-lSDL2"
 #define WARNINGS "-Wall", "-Wpedantic", "-Wextra"
-#define SRC_FILES "glut.c", "entity.c", "r_main.c", \
-		"component_interfaces.c", "main.c", "inspector.c", \
-		"transform.c", "srender.c"
+#define SRC_FILES "entity.c", \
+		"transform.c", "srender.c", \
+		"collider.c", "intent.c", "actuator.c", \
+		"component_interfaces.c", "main.c"
 
 #define OBJ_DIR "obj"
 #define BIN_DIR "bin"
@@ -32,8 +33,12 @@ int main(int argc, char **argv)
 	if (!nob_mkdir_if_not_exists(OBJ_DIR)) return 1;
 	if (!nob_mkdir_if_not_exists(BIN_DIR)) return 1;
 	CACHE_COMPILE(editor);
+	CACHE_COMPILE(inspector);
+	CACHE_COMPILE(r_main);
+	CACHE_COMPILE(glut);
 	if (!NOB_CMD(CC, CFLAGS, WARNINGS, SRC_FILES,
-		     OBJ_DIR"/editor.o",
+		     OBJ_DIR"/editor.o", OBJ_DIR"/inspector.o",
+		     OBJ_DIR"/r_main.o", OBJ_DIR"/glut.o",
 		     IFLAGS, LFLAGS,
 		     "-o", BIN_DIR"/"BIN_FILE)) return 1;
 	if (!nob_cd(BIN_DIR)) return 1;

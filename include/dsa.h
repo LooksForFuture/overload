@@ -43,8 +43,24 @@
 		(da)->count += (newItemsCount);			\
 	} while (0)
 
-#define da_foreach(type, item, da) \
-	for (type *item = (da)->items; \
-	     item < (da)->items + (da)->count; item++)
+#define fa_append(fa, item) \
+	do { \
+		assert((fa)->count <= (fa)->capacity && \
+			"Fixed array is full"); \
+		(fa)->items[(fa)->count++] = (item); \
+	} while (0)
+
+#define fa_append_many(da, newItems, newItemsCount) \
+	do { \
+		assert ((fa)->count+(newItemsCount) <= (fa)->capacity && \
+			"fixed array is full"); \
+		memcpy((fa)->items + (fa)->count, (newItems), \
+		       (newItemsCount)*sizeof(*(da)->items)); \
+		(fa)->count += (newItemsCount); \
+	} while (0)
+
+#define arr_foreach(type, item, arr) \
+	for (type *item = (arr)->items; \
+	     item < (arr)->items + (arr)->count; item++)
 
 #endif /* DSA_H */

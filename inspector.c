@@ -58,6 +58,12 @@ void Vec3_inspector_widget(const Vec3 *v)
 	editor_label(buf, ED_ALIGN_CENTER);
 }
 
+void bool_inspector_widget(const bool *b)
+{
+	editor_layout_row_dynamic(0, 1);
+	editor_label(*b ? "true": "false", ED_ALIGN_CENTER);
+}
+
 void float_inspector_widget(const float *f)
 {
 	char buf[32];

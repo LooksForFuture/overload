@@ -2,7 +2,7 @@
 #define TRANSFORM_H
 
 #include <component.h>
-#include <entity.h>
+#include <gmath.h>
 
 #define TRANSFORM_PUBLIC_FIELDS(field) \
 	field(transform, Vec2, position); \
