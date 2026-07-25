@@ -2,7 +2,6 @@
 #include <gamedef.h>
 #include <dsa.h>
 #include <all_components.h>
-#include <component_interfaces.h>
 
 #include <assert.h>
 #include <stdbool.h>
@@ -27,7 +26,7 @@ static struct {
 	size_t capacity;
 } destroy_pending; /* entities pending to be destroyed */
 
-static const component_interface *interfaces;
+static const component_interface *interfaces = NULL;
 
 void init_entities(void)
 {
@@ -49,13 +48,16 @@ void init_entities(void)
 	destroy_pending.items = NULL;
 	destroy_pending.count = 0;
 	destroy_pending.capacity = 0;
-
-	interfaces = get_component_interfaces();
 }
 
 void shutdown_entities(void)
 {
 	glut_free(destroy_pending.items);
+}
+
+void set_entity_component_interfaces(const component_interface *p)
+{
+	interfaces = p;
 }
 
 Entity create_entity(void)

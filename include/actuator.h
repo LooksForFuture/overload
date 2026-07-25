@@ -9,4 +9,6 @@
 
 decl_component(actuator, ACTUATOR_PUBLIC_FIELDS);
 
+void actuator_update(void);
+
 #endif /* ACTUATOR_H */

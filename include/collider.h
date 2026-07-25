@@ -9,4 +9,6 @@
 
 decl_component(collider, COLLIDER_PUBLIC_FIELDS);
 
+void collider_update_physics(float);
+
 #endif /* COLLIDER_H */

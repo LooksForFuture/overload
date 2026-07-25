@@ -7,6 +7,7 @@
 #define LFLAGS "-lm", "-lSDL2"
 #define WARNINGS "-Wall", "-Wpedantic", "-Wextra"
 #define SRC_FILES "entity.c", \
+		"kb_input.c", \
 		"transform.c", "srender.c", \
 		"collider.c", "intent.c", "actuator.c", \
 		"component_interfaces.c", "main.c"

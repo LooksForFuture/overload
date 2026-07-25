@@ -2,6 +2,9 @@
 #include <entity.h>
 #include <component.h>
 
+#include <intent.h>
+#include <collider.h>
+
 #define ACTUATOR_FIELDS(field) \
 	ACTUATOR_PUBLIC_FIELDS(field)
 
@@ -21,4 +24,19 @@ static inline void actuator_rem_private(Entity ent, EntityIndex index)
 {
 	(void)ent;
 	(void)index;
+}
+
+void actuator_update(void)
+{
+	for (int ac = 1; ac <= actuator_data.count; ac++) {
+		intent i;
+		collider c;
+		i = intent_get(actuator_data.rev_map[ac]);
+		if (i.id == 0) continue;
+		c = collider_get(actuator_data.rev_map[ac]);
+		if (c.id == 0) continue;
+
+		Vec2 movement = intent_movement(i);
+		collider_set_velocity(c, movement);
+	}
 }

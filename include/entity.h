@@ -17,9 +17,17 @@ typedef uint16_t EntityGeneration;
 						  & 0x00000000FFFF)
 #define ENTITY_WORLD(ent) ((ent) & RYU_ENTITY_WORLD_MASK)
 
+/* a component must be able to expose these functions */
+typedef struct {
+	void (*rem_entity_immediately)(Entity ent);
+	void (*inspector_default)(Entity ent);
+} component_interface;
+
 void init_entities(void);
 
 void shutdown_entities(void);
+
+void set_entity_component_interfaces(const component_interface *);
 
 Entity create_entity(void);
 

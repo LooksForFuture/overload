@@ -63,8 +63,8 @@ void srender_draw_all(Vec2 camera)
 		r_fill_rect(&(SDL_FRect){
 				p.x + GAME_VIEW_WIDTH / 2 -
 				s.x / 2 - camera.x,
-				p.y + GAME_VIEW_HEIGHT / 2 -
-				s.y / 2 - camera.y,
+				-p.y + GAME_VIEW_HEIGHT / 2 -
+				s.y / 2 + camera.y,
 				s.x, s.y});
 	}
 }

@@ -4,6 +4,9 @@
 #include <editor.h>
 #include <gmath.h>
 
+#include <input.h>
+#include <kb_input.h>
+
 #include <all_components.h>
 #include <entity.h>
 #include <component_interfaces.h>
@@ -11,6 +14,7 @@
 #include <srender.h>
 #include <collider.h>
 #include <intent.h>
+#include <actuator.h>
 
 #include <SDL2/SDL.h>
 
@@ -19,109 +23,44 @@
 
 #define return_defer(val) do { result = (val); goto defer; } while (0)
 
-typedef struct {
-	SDL_Scancode move_up;
-	SDL_Scancode move_down;
-	SDL_Scancode move_left;
-	SDL_Scancode move_right;
-	SDL_Scancode sprint;
-	SDL_Scancode wp_next;
-	SDL_Scancode wp_prev;
-} KeyConfig;
-
-static uint8_t previous_keys[SDL_NUM_SCANCODES];
-static uint8_t current_keys[SDL_NUM_SCANCODES];
-
-static inline bool key_pressed(SDL_Scancode key)
-{
-	return current_keys[key];
-}
-
-static inline bool key_down(SDL_Scancode key)
-{
-	return current_keys[key] && !previous_keys[key];
-}
-
-static inline bool key_up(SDL_Scancode key)
-{
-	return !current_keys[key] && previous_keys[key];
-}
-
-KeyConfig config_load(const char *path)
-{
-	KeyConfig cfg = {
-		.move_up = SDL_SCANCODE_W,
-		.move_down = SDL_SCANCODE_S,
-		.move_left = SDL_SCANCODE_A,
-		.move_right = SDL_SCANCODE_D,
-		.sprint = SDL_SCANCODE_LCTRL,
-		.wp_next = SDL_SCANCODE_E,
-		.wp_prev = SDL_SCANCODE_Q
-	};
-
-	FILE *f = fopen(path, "r");
-	if (!f) return cfg;
-
-	char line[256];
-	while (fgets(line, sizeof(line), f)) {
-		char key[64], value[64];
-		if (sscanf(line, "%63[^=] = %63s", key, value) == 2) {
-			SDL_Scancode sc = SDL_GetScancodeFromName(value);
-			if (sc != SDL_SCANCODE_UNKNOWN) {
-				if (!strcmp(key, "move_up"))
-					cfg.move_up = sc;
-				else if (!strcmp(key, "move_down"))
-					cfg.move_down = sc;
-				else if (!strcmp(key, "move_left"))
-					cfg.move_left = sc;
-				else if (!strcmp(key, "move_right"))
-					cfg.move_right = sc;
-				else if (!strcmp(key, "sprint"))
-					cfg.sprint = sc;
-				else if (!strcmp(key, "weapon_next"))
-					cfg.wp_next = sc;
-				else if (!strcmp(key, "weapon_prev"))
-					cfg.wp_prev = sc;
-			}
-		}
-	}
-	fclose(f);
-
-	return cfg;
-}
+static InputProfileStruct game_input;
 
 void cleanup(void)
 {
+
 	#ifndef NO_EDITOR
 	editor_shutdown();
 	#endif
 
 	shutdown_all_components();
-	r_shutdown();
+	kb_input_shutdown();
 	shutdown_entities();
+	r_shutdown();
+	glut_shutdown();
 }
 
 int main(void)
 {
 	bool quit = false;
 	Entity player, camera;
-	KeyConfig input_config;
+
+	InputMapper input_mappers[] = {
+		(InputMapper){"kb & mouse", kb_input_update},
+	};
 
 	atexit(cleanup);
 
 	glut_init();
 	r_init();
 	init_entities();
+	kb_input_init();
 	init_all_components();
 
 	#ifndef NO_EDITOR
 	editor_init();
 	#endif
 
-	input_config = config_load("input_config.txt");
-
-	memset(previous_keys, 0, sizeof(previous_keys));
-	memset(current_keys, 0, sizeof(current_keys));
+	set_entity_component_interfaces(get_component_interfaces());
 
 	/* setup the player */
 	{
@@ -129,11 +68,13 @@ int main(void)
 		srender s;
 		collider c;
 		intent i;
+		actuator ac;
 		player = create_entity();
 		t = transform_add(player);
 		s = srender_add(player);
 		c = collider_add(player);
 		i = intent_add(player);(void)i;
+		ac = actuator_add(player);(void)ac;
 		transform_set_position(t, (Vec2){0, 0});
 		transform_set_scale(t, (Vec2){1, 1});
 		srender_set_color(s, (Vec3){0, 255, 0});
@@ -148,9 +89,20 @@ int main(void)
 		transform_set_position(t, (Vec2){0, 0});
 	}
 
+	game_input = (InputProfileStruct){0};
+	float currentTime, previousTime, fixedDt = 1.0f / 60.0f;
+	float tick = 0.0f; //time passed since last fixed update
+	currentTime = SDL_GetTicks() / 1000.0f;
+	previousTime = currentTime;
 	while (!quit) {
+		currentTime = SDL_GetTicks() / 1000.0f;
+		float deltaTime = currentTime-previousTime;
+		previousTime = currentTime;
+
+		/* event polling */
 		SDL_Event e;
 		editor_begin_poll();
+		game_input.previous = game_input.current;
 		while (SDL_PollEvent(&e)) {
 			SDL_Window *target_window = NULL;
 			switch (e.type) {
@@ -188,6 +140,8 @@ int main(void)
 
 			if (target_window == r_get_window()) {
 				r_handle_event(&e);
+				input_mappers[0].update(&e,
+					&game_input.current);
 			}
 #ifndef NO_EDITOR
 			else if (target_window == editor_get_window()) {
@@ -197,27 +151,24 @@ int main(void)
 		}
 		editor_end_poll();
 
-		/* update keyboard state */
-		memcpy(previous_keys, current_keys,
-		       sizeof(previous_keys));
-		memcpy(current_keys, SDL_GetKeyboardState(NULL),
-		       sizeof(current_keys));
+		/* fixed update */
+		tick += deltaTime;
+		while (tick >= fixedDt) {
+			tick -= fixedDt;
+
+			collider_update_physics(fixedDt);
+		}
 
 		/* update player input */
 		{
 			intent i = intent_get(player);
-			Vec2 movement = {0};
-			if (key_pressed(input_config.move_up))
-				movement.y = 1;
-			if (key_pressed(input_config.move_down))
-				movement.y = -1;
-			if (key_pressed(input_config.move_left))
-				movement.x = -1;
-			if (key_pressed(input_config.move_right))
-				movement.x = 1;
-
-			intent_set_movement(i, movement);
+			intent_set_movement(
+				i,
+				(Vec2){game_input.current.movement.x,
+				game_input.current.movement.y});
 		}
+
+		actuator_update();
 
 		flush_entities();
 		flush_all_components();
