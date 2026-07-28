@@ -98,6 +98,7 @@ int main(void)
 		currentTime = SDL_GetTicks() / 1000.0f;
 		float deltaTime = currentTime-previousTime;
 		previousTime = currentTime;
+		if (deltaTime > 0.1f) deltaTime = 0.1f;
 
 		/* event polling */
 		SDL_Event e;
