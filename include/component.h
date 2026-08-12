@@ -25,8 +25,6 @@
 		if (editor_tree_push(ED_TREE_NODE, \
 				     #name, ED_MINIMIZED)) { \
 			name handle = name##_get(ent); \
-			editor_layout_row_dynamic(0, 1); \
-			editor_label(#name, ED_ALIGN_LEFT); \
 			public_fields(component_field_inspector); \
 			editor_tree_pop(); \
 		} \
@@ -70,7 +68,8 @@
 		editor_label(#name":", ED_ALIGN_RIGHT); \
 		editor_label(#type, ED_ALIGN_LEFT); \
 		const type *p = &component##_data.name[handle.id]; \
-		type##_inspector_widget(p); \
+		type##_inspector_widget(ENTITY_INDEX(ent), p, \
+					component##_set_##name##_impl); \
 	}
 
 #define component_get_set_impl(component, type, name) \

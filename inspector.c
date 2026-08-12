@@ -31,53 +31,68 @@ void inspector_inspect(Entity entity)
 	} editor_end();
 }
 
-void Vec2_inspector_widget(const Vec2 *v)
+void Vec2_inspector_widget(EntityIndex index, const Vec2 *v,
+			   void (*setter)(EntityIndex, Vec2))
 {
-	char buf[32];
-	editor_layout_row_dynamic(0, 4);
-	editor_label("x:", ED_ALIGN_CENTER);
-	snprintf(buf, sizeof(buf), "%.3f", v->x);
-	editor_label(buf, ED_ALIGN_CENTER);
-	editor_label("y:", ED_ALIGN_CENTER);
-	snprintf(buf, sizeof(buf), "%.3f", v->y);
-	editor_label(buf, ED_ALIGN_CENTER);
+	float new_x;
+	float new_y;
+	editor_layout_row_dynamic(0, 2);
+	new_x = editor_propertyf("#x", FLT_MIN, v->x, FLT_MAX);
+	new_y = editor_propertyf("#y", FLT_MIN, v->y, FLT_MAX);
+
+	if (new_x != v->x || new_y != v->y) {
+		Vec2 new_vec = (Vec2){new_x, new_y};
+		setter(index, new_vec);
+	}
 }
 
-void Vec3_inspector_widget(const Vec3 *v)
+void Vec3_inspector_widget(EntityIndex index, const Vec3 *v,
+			   void (*setter)(EntityIndex, Vec3))
 {
-	char buf[32];
-	editor_layout_row_dynamic(0, 6);
-	editor_label("x:", ED_ALIGN_CENTER);
-	snprintf(buf, sizeof(buf), "%.3f", v->x);
-	editor_label(buf, ED_ALIGN_CENTER);
-	editor_label("y:", ED_ALIGN_CENTER);
-	snprintf(buf, sizeof(buf), "%.3f", v->y);
-	editor_label(buf, ED_ALIGN_CENTER);
-	editor_label("z:", ED_ALIGN_CENTER);
-	snprintf(buf, sizeof(buf), "%.3f", v->z);
-	editor_label(buf, ED_ALIGN_CENTER);
+
+	float new_x;
+	float new_y;
+	float new_z;
+	editor_layout_row_dynamic(0, 3);
+	new_x = editor_propertyf("#x", FLT_MIN, v->x, FLT_MAX);
+	new_y = editor_propertyf("#y", FLT_MIN, v->y, FLT_MAX);
+	new_z = editor_propertyf("#z", FLT_MIN, v->z, FLT_MAX);
+
+	if (new_x != v->x || new_y != v->y || new_z != v->z) {
+		Vec3 new_vec = (Vec3){new_x, new_y, new_x};
+		setter(index, new_vec);
+	}
 }
 
-void bool_inspector_widget(const bool *b)
+void bool_inspector_widget(EntityIndex index, const bool *b,
+			   void (*setter)(EntityIndex, bool))
 {
+	(void)index;
+	(void)setter;
 	editor_layout_row_dynamic(0, 1);
 	editor_label(*b ? "true": "false", ED_ALIGN_CENTER);
 }
 
-void float_inspector_widget(const float *f)
+void float_inspector_widget(EntityIndex index, const float *f,
+			    void (*setter)(EntityIndex, float))
 {
-	char buf[32];
+	float new_f;
 	editor_layout_row_dynamic(0, 1);
-	snprintf(buf, sizeof(buf), "%f", *f);
-	editor_label(buf, ED_ALIGN_CENTER);
+	new_f = editor_propertyf("#", FLT_MIN, *f, FLT_MAX);
+	if (new_f != *f) {
+		setter(index, new_f);
+	}
 }
 
-void int_inspector_widget(const int *i)
+void int_inspector_widget(EntityIndex index, const int *i,
+			  void (*setter)(EntityIndex, int))
 {
-	char buf[32];
+	int new_i;
 	editor_layout_row_dynamic(0, 1);
-	snprintf(buf, sizeof(buf), "%d", *i);
-	editor_label(buf, ED_ALIGN_CENTER);
+	new_i = editor_propertyi("#", INT_MIN, *i, INT_MAX);
+	if (new_i != *i) {
+		setter(index, new_i);
+	}
 }
 
 #else

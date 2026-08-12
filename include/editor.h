@@ -58,7 +58,13 @@ void editor_label(const char *, int);
 
 bool editor_button(const char *);
 
-bool editor_property_float(const char *, float, float *, float);
+int editor_propertyi(const char *, int, int, int);
+
+float editor_propertyf(const char *, float, float, float);
+
+bool editor_checkbox(const char *, bool);
+
+bool editor_option_label(const char *, bool);
 
 #endif /* NO_EDITOR */
 #endif /* EDITOR_H */

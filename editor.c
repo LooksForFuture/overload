@@ -178,11 +178,27 @@ bool editor_button(const char *title)
 	return nk_button_label(ctx, title);
 }
 
-bool editor_property_float(const char *name, float min,
-			   float *f, float max)
+int editor_propertyi(const char *name, int min,
+		      int i, int max)
 {
-	return nk_property_float(ctx, name, min, f, max,
-				 0.001, 0.001);
+	return nk_propertyi(ctx, name, min, i, max, 1, 1);
+}
+
+float editor_propertyf(const char *name, float min,
+		      float f, float max)
+{
+	return nk_propertyf(ctx, name, min, f, max,
+			    0.001, 0.001);
+}
+
+bool editor_checkbox(const char *label, bool active)
+{
+	return nk_check_label(ctx, label, active);
+}
+
+bool editor_option_label(const char *label, bool active)
+{
+	return nk_option_label(ctx, label, active);
 }
 
 #else /* NO_EDITOR */

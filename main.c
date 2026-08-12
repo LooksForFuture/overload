@@ -108,15 +108,15 @@ int main(void)
 	}
 
 	game_input = (InputProfileStruct){0};
-	float currentTime, previousTime, fixedDt = 1.0f / 60.0f;
+	float current_time, previous_time, fixed_dt = 1.0f / 60.0f;
 	float tick = 0.0f; //time passed since last fixed update
-	currentTime = SDL_GetTicks() / 1000.0f;
-	previousTime = currentTime;
+	current_time = SDL_GetTicks() / 1000.0f;
+	previous_time = current_time;
 	while (!quit) {
-		currentTime = SDL_GetTicks() / 1000.0f;
-		float deltaTime = currentTime-previousTime;
-		previousTime = currentTime;
-		if (deltaTime > 0.1f) deltaTime = 0.1f;
+		current_time = SDL_GetTicks() / 1000.0f;
+		float delta_time = current_time-previous_time;
+		previous_time = current_time;
+		if (delta_time > 0.1f) delta_time = 0.1f;
 
 		/* event polling */
 		SDL_Event e;
@@ -171,11 +171,11 @@ int main(void)
 		editor_end_poll();
 
 		/* fixed update */
-		tick += deltaTime;
-		while (tick >= fixedDt) {
-			tick -= fixedDt;
+		tick += delta_time;
+		while (tick >= fixed_dt) {
+			tick -= fixed_dt;
 
-			collider_update_physics(fixedDt);
+			collider_update_physics(fixed_dt);
 		}
 
 		/* update player input */
@@ -209,6 +209,13 @@ int main(void)
 
 #ifndef NO_EDITOR /* the editor */
 		inspector_inspect(player);
+		if (editor_begin("Bench", &(SDL_Rect){30, 280,
+					250, 250})) {
+			char buf[32];
+			editor_layout_row_dynamic(0, 1);
+			snprintf(buf, sizeof(buf), "frame time: %f", delta_time);
+			editor_label(buf, ED_ALIGN_CENTER);
+		} editor_end();
 		editor_render();
 #endif /* NO_EDITOR */
 

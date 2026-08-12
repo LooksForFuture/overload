@@ -2,7 +2,8 @@
 #include "nob.h"
 
 #define CC "cc"
-#define CFLAGS "-std=c17", "-g", "-fsanitize=address", "-flto"
+#define CFLAGS "-std=c17", "-g", "-fsanitize=address,undefined", \
+		"-flto=auto"
 #define IFLAGS "-Iinclude/"
 #define LFLAGS "-lm", "-lSDL2"
 #define WARNINGS "-Wall", "-Wpedantic", "-Wextra"

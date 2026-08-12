@@ -17,7 +17,7 @@ static inline void actuator_shutdown_private(void) {}
 static inline void actuator_add_private(Entity ent, EntityIndex index)
 {
 	(void)ent;
-	(void)index;
+	actuator_data.enabled[index] = true;
 }
 
 static inline void actuator_rem_private(Entity ent, EntityIndex index)
@@ -31,6 +31,9 @@ void actuator_update(void)
 	for (int ac = 1; ac <= actuator_data.count; ac++) {
 		intent i;
 		collider c;
+
+		if (!actuator_data.enabled[ac]) continue;
+
 		i = intent_get(actuator_data.rev_map[ac]);
 		if (i.id == 0) continue;
 		c = collider_get(actuator_data.rev_map[ac]);
