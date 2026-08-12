@@ -5,7 +5,8 @@
 #include <gmath.h>
 
 #define COLLIDER_PUBLIC_FIELDS(field) \
-	field(collider, Vec2, velocity)
+	field(collider, Vec2, velocity) \
+	field(collider, float, radius)
 
 decl_component(collider, COLLIDER_PUBLIC_FIELDS);
 

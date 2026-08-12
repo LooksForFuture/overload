@@ -41,10 +41,10 @@
 
 #define component_getset_fields(component, type, name) \
 	type component##_##name(component); \
-	void component##_set_##name(component, type)
+	void component##_set_##name(component, type);
 
 #define component_storage_fields(component, type, name) \
-	type name[MAX_ENTITY_COUNT]
+	type name[MAX_ENTITY_COUNT];
 
 #define decl_component(name, fields_f) \
 	typedef struct { EntityIndex id; } name; \
@@ -57,12 +57,12 @@
 	void name##_rem_entity_immediately(Entity); \
 	void name##_flush_entities(void); \
 	void name##_inspector_default(Entity);	\
-	fields_f(component_getset_fields); \
+	fields_f(component_getset_fields) \
 	def_component_inspector(name)
 
 #define component_copy_last_to_index(component, type, name) \
 	component##_data.name[index] = \
-		component##_data.name[component##_data.count]
+		component##_data.name[component##_data.count];
 
 
 #define component_field_inspector(component, type, name) { \
@@ -73,15 +73,36 @@
 		type##_inspector_widget(p); \
 	}
 
+#define component_get_set_impl(component, type, name) \
+	static inline type component##_##name##_impl(EntityIndex); \
+	static inline void component##_set_##name##_impl(EntityIndex, type);\
+	type component##_##name(component handle) \
+	{ \
+		if ((int)handle.id > component##_data.count) \
+			return (type){0}; \
+		return component##_##name##_impl(handle.id); \
+	} \
+	\
+	void component##_set_##name(component handle, type new_val) \
+	{ \
+		if ((int)handle.id > component##_data.count) return; \
+		component##_set_##name##_impl(handle.id, new_val); \
+	}
+
 #define decl_component_storage(name, public_fields, fields_f) \
 	struct { \
 		int count; \
-		struct { EntityIndex *items; size_t count; \
-			size_t capacity; } rem_pending; \
-		component_storage_fields(name, EntityIndex, map); \
-		component_storage_fields(name, Entity, rev_map); \
-		component_storage_fields(name, bool, pending_remove); \
-		fields_f(component_storage_fields); \
+		/* Isn't supposed to be touched by the gameplay code */ \
+		struct { \
+			struct { EntityIndex *items; size_t count; \
+				size_t capacity; } rem_pending; \
+			component_storage_fields(name, bool, \
+						 pending_remove) \
+		} private_data;	\
+		\
+		component_storage_fields(name, EntityIndex, map) \
+		component_storage_fields(name, Entity, rev_map) \
+		fields_f(component_storage_fields) \
 	} name##_data; \
 	\
 	static inline void name##_init_private(void); \
@@ -92,9 +113,10 @@
 		} \
 		name##_data.count = 0; \
 		name##_init_private(); \
-		name##_data.rem_pending.items = 0; \
-		name##_data.rem_pending.count = 0; \
-		name##_data.rem_pending.capacity = COMP_REM_Q_CAP; \
+		name##_data.private_data.rem_pending.items = 0; \
+		name##_data.private_data.rem_pending.count = 0; \
+		name##_data.private_data.rem_pending.capacity = \
+			COMP_REM_Q_CAP; \
 	} \
 	static inline void name##_shutdown_private(void); \
 	void name##_shutdown(void) { \
@@ -112,7 +134,7 @@
 		index = ++name##_data.count; \
 		name##_data.map[ent_index] = index; \
 		name##_data.rev_map[index] = ent; \
-		name##_data.pending_remove[index] = false; \
+		name##_data.private_data.pending_remove[index] = false; \
 		component_added_to_entity(ent, 1ULL<<COMPONENT_##name);\
 		name##_add_private(ent, index); \
 		return (name){index}; \
@@ -131,10 +153,11 @@
 		if (!is_entity_valid(ent)) return; \
 		index = name##_data.map[ENTITY_INDEX(ent)]; \
 		if (index == 0 || \
-		    name##_data.pending_remove[index]) return;	\
+		    name##_data.private_data.pending_remove[index]) \
+			return; \
 		\
-		fa_append(&name##_data.rem_pending, index); \
-		name##_data.pending_remove[index] = true; \
+		fa_append(&name##_data.private_data.rem_pending, index);\
+		name##_data.private_data.pending_remove[index] = true; \
 	} \
 	\
 	static void name##_rem_from_index_immediate( \
@@ -160,16 +183,20 @@
 	} \
 	\
 	void name##_flush_entities(void) { \
-		if (name##_data.rem_pending.count == 0) return; \
+		if (name##_data.private_data.rem_pending.count == 0) \
+			return; \
 		arr_foreach(EntityIndex, index_p, \
-			   &name##_data.rem_pending) {	\
+			   &name##_data.private_data.rem_pending) { \
 			EntityIndex index = *index_p; \
 			Entity ent = name##_data.rev_map[index]; \
 			if (!is_entity_valid(ent)) return; \
 			name##_rem_from_index_immediate(ent, index); \
 		} \
-		name##_data.rem_pending.count = 0; \
+		name##_data.private_data.rem_pending.count = 0; \
 	} \
+	\
+	public_fields(component_get_set_impl) \
+	\
 	decl_component_inspector(name, public_fields)
 
 #endif /* COMPONENT_H */

@@ -2,7 +2,7 @@
 #include "nob.h"
 
 #define CC "cc"
-#define CFLAGS "-std=c17", "-g"
+#define CFLAGS "-std=c17", "-g", "-fsanitize=address", "-flto"
 #define IFLAGS "-Iinclude/"
 #define LFLAGS "-lm", "-lSDL2"
 #define WARNINGS "-Wall", "-Wpedantic", "-Wextra"
@@ -40,6 +40,12 @@ int main(int argc, char **argv)
 
 	if (!nob_mkdir_if_not_exists(OBJ_DIR)) return 1;
 	if (!nob_mkdir_if_not_exists(BIN_DIR)) return 1;
+
+	if (!nob_file_exists(BIN_DIR"/"BIN_FILE)) {
+		must_compile = true;
+		must_link = true;
+		goto compile_stage;
+	}
 
 	CHECK_HEADER("actuator.h");
 	CHECK_HEADER("all_components.h");

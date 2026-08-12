@@ -26,24 +26,24 @@ static inline void srender_rem_private(Entity ent, EntityIndex index)
 	(void)index;
 }
 
-int srender_sprite(srender handle)
+static inline int srender_sprite_impl(EntityIndex id)
 {
-	return srender_data.sprite[handle.id];
+	return srender_data.sprite[id];
 }
 
-void srender_set_sprite(srender handle, int new_sprite)
+static inline void srender_set_sprite_impl(EntityIndex id, int new_sprite)
 {
-	srender_data.sprite[handle.id] = new_sprite;
+	srender_data.sprite[id] = new_sprite;
 }
 
-Vec3 srender_color(srender handle)
+static inline Vec3 srender_color_impl(EntityIndex id)
 {
-	return srender_data.color[handle.id];
+	return srender_data.color[id];
 }
 
-void srender_set_color(srender handle, Vec3 new_color)
+static inline void srender_set_color_impl(EntityIndex id, Vec3 new_color)
 {
-	srender_data.color[handle.id] = new_color;
+	srender_data.color[id] = new_color;
 }
 
 void srender_draw_all(Vec2 camera)

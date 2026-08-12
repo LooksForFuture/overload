@@ -37,6 +37,21 @@ void actuator_update(void)
 		if (c.id == 0) continue;
 
 		Vec2 movement = intent_movement(i);
+		movement.x *= 2;
+		movement.y *= 2;
 		collider_set_velocity(c, movement);
 	}
+}
+
+
+static inline bool
+actuator_enabled_impl(EntityIndex id)
+{
+	return actuator_data.enabled[id];
+}
+
+static inline void
+actuator_set_enabled_impl(EntityIndex id, bool enabled)
+{
+	actuator_data.enabled[id] = enabled;
 }

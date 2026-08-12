@@ -11,7 +11,9 @@ static inline void transform_shutdown_private(void) {}
 static inline void transform_add_private(Entity ent, EntityIndex index)
 {
 	(void)ent;
-	(void)index;
+	transform_data.position[index] = (Vec2){0.0f, 0.0f};
+	transform_data.rotation[index] = 0.0f;
+	transform_data.scale[index] = (Vec2){1.0f, 1.0f};
 }
 
 static inline void transform_rem_private(Entity ent, EntityIndex index)
@@ -20,32 +22,35 @@ static inline void transform_rem_private(Entity ent, EntityIndex index)
 	(void)index;
 }
 
-Vec2 transform_position(transform handle)
+static inline Vec2 transform_position_impl(EntityIndex id)
 {
-	return transform_data.position[handle.id];
+	return transform_data.position[id];
 }
 
-void transform_set_position(transform handle, Vec2 new_pos)
+static inline void
+transform_set_position_impl(EntityIndex id, Vec2 new_pos)
 {
-	transform_data.position[handle.id] = new_pos;
+	transform_data.position[id] = new_pos;
 }
 
-float transform_rotation(transform handle)
+static inline float transform_rotation_impl(EntityIndex id)
 {
-	return transform_data.rotation[handle.id];
+	return transform_data.rotation[id];
 }
 
-void transform_set_rotation(transform handle, float new_rot)
+static inline void
+transform_set_rotation_impl(EntityIndex id, float new_rot)
 {
-	transform_data.rotation[handle.id] = new_rot;
+	transform_data.rotation[id] = new_rot;
 }
 
-Vec2 transform_scale(transform handle)
+static inline Vec2 transform_scale_impl(EntityIndex id)
 {
-	return transform_data.scale[handle.id];
+	return transform_data.scale[id];
 }
 
-void transform_set_scale(transform handle, Vec2 new_scale)
+static inline void
+transform_set_scale_impl(EntityIndex id, Vec2 new_scale)
 {
-	transform_data.scale[handle.id] = new_scale;
+	transform_data.scale[id] = new_scale;
 }

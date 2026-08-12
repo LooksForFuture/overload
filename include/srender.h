@@ -5,7 +5,7 @@
 #include <gmath.h>
 
 #define SRENDER_PUBLIC_FIELDS(field) \
-	field(srender, int, sprite); \
+	field(srender, int, sprite) \
 	field(srender, Vec3, color)
 
 decl_component(srender, SRENDER_PUBLIC_FIELDS);

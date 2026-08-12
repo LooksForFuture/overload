@@ -4,6 +4,8 @@
 #include <editor.h>
 #include <gmath.h>
 
+#include <physics.h>
+
 #include <input.h>
 #include <kb_input.h>
 
@@ -34,6 +36,7 @@ void cleanup(void)
 
 	shutdown_all_components();
 	kb_input_shutdown();
+	ph_shutdown();
 	shutdown_entities();
 	r_shutdown();
 	glut_shutdown();
@@ -42,7 +45,7 @@ void cleanup(void)
 int main(void)
 {
 	bool quit = false;
-	Entity player, camera;
+	Entity player, camera, enemy1;
 
 	InputMapper input_mappers[] = {
 		(InputMapper){"kb & mouse", kb_input_update},
@@ -53,6 +56,7 @@ int main(void)
 	glut_init();
 	r_init();
 	init_entities();
+	ph_init();
 	kb_input_init();
 	init_all_components();
 
@@ -87,6 +91,20 @@ int main(void)
 		camera = create_entity();
 		t = transform_add(camera);
 		transform_set_position(t, (Vec2){0, 0});
+	}
+
+	/* setup enemy1 */
+	{
+		transform t;
+		srender s;
+		collider c;
+		enemy1 = create_entity();
+		t = transform_add(enemy1);
+		transform_set_position(t, (Vec2){-3, 0});
+		s = srender_add(enemy1);
+		srender_set_color(s, (Vec3){255, 0, 0});
+		c = collider_add(enemy1);
+		collider_set_velocity(c, (Vec2){1, 0});
 	}
 
 	game_input = (InputProfileStruct){0};

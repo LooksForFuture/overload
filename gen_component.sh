@@ -54,6 +54,18 @@ static inline void ${COMPONENT_NAME_LOWER}_rem_private(Entity ent, EntityIndex i
 	(void)ent;
 	(void)index;
 }
+
+static inline bool
+${COMPONENT_NAME_LOWER}_enabled_impl(${COMPONENT_NAME_LOWER} handle)
+{
+	return ${COMPONENT_NAME_LOWER}_data.enabled[handle.id];
+}
+
+static inline void
+${COMPONENT_NAME_LOWER}_set_enabled_impl(${COMPONENT_NAME_LOWER} handle, bool enabled)
+{
+	${COMPONENT_NAME_LOWER}_data.enabled[handle.id] = enabled;
+}
 EOF
 
 echo "Generated ${COMPONENT_NAME_LOWER}.h and ${COMPONENT_NAME_LOWER}.c"

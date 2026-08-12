@@ -23,12 +23,12 @@ static inline void intent_rem_private(Entity ent, EntityIndex index)
 	(void)index;
 }
 
-Vec2 intent_movement(intent handle)
+static inline Vec2 intent_movement_impl(EntityIndex id)
 {
-	return intent_data.movement[handle.id];
+	return intent_data.movement[id];
 }
 
-void intent_set_movement(intent handle, Vec2 new_mov)
+static inline void intent_set_movement_impl(EntityIndex id, Vec2 new_mov)
 {
-	intent_data.movement[handle.id] = new_mov;
+	intent_data.movement[id] = new_mov;
 }
