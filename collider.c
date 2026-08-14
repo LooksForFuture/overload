@@ -32,12 +32,12 @@ static inline void collider_add_private(Entity ent, EntityIndex index)
 static inline void collider_rem_private(Entity ent, EntityIndex index)
 {
 	(void)ent;
-	(void)index;
+	ph_destroy_body(collider_data.body[index]);
 }
 
 void collider_update_physics(float dt)
 {
-	ph_update(dt);
+	(void)dt;
 	for (int i = 1; i <= collider_data.count; i++) {
 		transform t = transform_get(collider_data.rev_map[i]);
 		if (t.id == 0) continue;

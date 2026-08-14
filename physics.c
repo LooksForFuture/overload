@@ -3,7 +3,6 @@
 #include <math.h>
 
 #define MAX_BODY_COUNT 128
-#define ITER_COUNT 5
 
 #define CREATE_BODY(i, g) (((uint16_t)(i) << 8)|((uint8_t)(g)))
 
@@ -65,6 +64,9 @@ static phBodyIndex free_slot = 1;
 
 void ph_init(void)
 {
+	kinematic_count = 0;
+	ghost_count = 0;
+	free_slot = 1;
 	for (int i = 0; i < MAX_BODY_COUNT - 1; i++) {
 		slots[i] = (BodySlot){true, 0, i+1, 0, 0};
 	}
@@ -179,14 +181,17 @@ bool ph_is_body_valid(phBody body)
 
 void ph_destroy_body(phBody body)
 {
-	phBodyIndex index, last_ghost, last_kin;
+	phBodyIndex slot_index, index, last_ghost, last_kin;
+	BodySlot *slot;
 	enum phBodyType type;
 	if (!ph_is_body_valid(body)) return;
 
-	index = slots[PH_INDEX(body)].index;
-	last_ghost = kinematic_count + ghost_count + 1;
-	last_kin = kinematic_count + 1;
+	slot_index = PH_INDEX(body);
+	slot = &slots[slot_index];
+	index = slot->index;
 	type = bodies.type[index];
+	last_ghost = kinematic_count + ghost_count;
+	last_kin = kinematic_count;
 	if (type == PH_GHOST) {
 		if (index < last_ghost) {
 			phBodyIndex rev = bodies.rev_map[last_ghost];
@@ -208,6 +213,11 @@ void ph_destroy_body(phBody body)
 		}
 		kinematic_count--;
 	}
+
+	slot->empty = true;
+	slot->index = 0;
+	slot->next_free = free_slot;
+	slot->data = 0;
 }
 
 bool ph_is_body_enabled(phBody body)
@@ -309,7 +319,7 @@ void ph_set_body_user_data(phBody body, phUserData data)
 	}
 }
 
-static void resolve_kinematics(int a, int b)
+static bool resolve_kinematics(int a, int b)
 {
 	float dx = bodies.x[b] - bodies.x[a];
 	float dy = bodies.y[b] - bodies.y[a];
@@ -317,8 +327,8 @@ static void resolve_kinematics(int a, int b)
 	float min_dist = bodies.radius[a] + bodies.radius[b];
 	float overlap = min_dist - dist;
 	float nx, ny;
-	
-	if (dist >= min_dist || dist <= 0.0001f) return;
+
+	if (dist >= min_dist || dist <= 0.0001f) return false;
 
 	/* normalized direction from a to b */
 	nx = dx / dist;
@@ -330,10 +340,10 @@ static void resolve_kinematics(int a, int b)
 	bodies.x[b] += nx * overlap * 0.5f;
 	bodies.y[b] += ny * overlap * 0.5f;
 
-	return;
+	return true;
 }
 
-void ph_update(float dt)
+void ph_update(float dt, int iter_count)
 {
 	for (int i = 1; i <= kinematic_count; i++) {
 		if (!bodies.enabled[i]) continue;
@@ -342,8 +352,9 @@ void ph_update(float dt)
 		bodies.y[i] += bodies.vy[i] * dt;
 	}
 
-	for (int iter = 0; iter < ITER_COUNT; iter++) {
+	for (int iter = 0; iter < iter_count; iter++) {
 		for (int i = 1; i <= kinematic_count; i++) {
+			if (!bodies.enabled[i]) continue;
 			for (int j = i + 1; j <= kinematic_count; j++) {
 				if (!bodies.enabled[j]) continue;
 				resolve_kinematics(i, j);

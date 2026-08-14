@@ -175,6 +175,7 @@ int main(void)
 		while (tick >= fixed_dt) {
 			tick -= fixed_dt;
 
+			ph_update(fixed_dt, 5);
 			collider_update_physics(fixed_dt);
 		}
 

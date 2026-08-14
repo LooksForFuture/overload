@@ -57,6 +57,8 @@ phBody ph_new_body(enum phBodyType);
 
 bool ph_is_body_valid(phBody);
 
+void ph_destroy_body(phBody);
+
 bool ph_is_body_enabled(phBody);
 
 void ph_set_body_enabled(phBody, bool);
@@ -83,6 +85,6 @@ void ph_set_body_user_data(phBody, phUserData);
 
 void ph_set_collision_listener(void (*listener)(phCollisionEvent));
 
-void ph_update(float);
+void ph_update(float, int);
 
 #endif /* PHYSICS_H */
