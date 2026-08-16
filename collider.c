@@ -14,7 +14,25 @@ static decl_component_storage(collider,
 			      COLLIDER_PUBLIC_FIELDS,
 			      COLLIDER_PRIVATE_FIELDS)
 
-static inline void collider_init_private(void) {}
+static void collision_listener(phCollisionEvent event)
+{
+	switch (event.type) {
+	case PH_COLLISION_ENTER:
+		printf("ENTER %u <-> %u\n", event.body_a, event.body_b);
+		break;
+	case PH_COLLISION_STAY:
+		printf("STAY %u <-> %u\n", event.body_a, event.body_b);
+		break;
+	case PH_COLLISION_EXIT:
+		printf("EXIT %u <-> %u\n", event.body_a, event.body_b);
+		break;
+	}
+}
+
+static inline void collider_init_private(void)
+{
+	ph_set_collision_listener(collision_listener);
+}
 static inline void collider_shutdown_private(void) {}
 static inline void collider_add_private(Entity ent, EntityIndex index)
 {

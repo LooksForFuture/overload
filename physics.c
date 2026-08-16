@@ -1,6 +1,7 @@
 #include <physics.h>
 
 #include <math.h>
+#include <string.h>
 
 #define MAX_BODY_COUNT 128
 
@@ -50,6 +51,7 @@ struct {
 
 typedef struct {
 	bool empty;
+	bool pending_destroy;
 	phBodyIndex index;
 	phBodyIndex next_free;
 	phBodyGeneration generation;
@@ -62,15 +64,110 @@ static phBodyIndex ghost_count = 0;
 static BodySlot slots[MAX_BODY_COUNT];
 static phBodyIndex free_slot = 1;
 
+static phBodyIndex destroy_queue[MAX_BODY_COUNT-1];
+static int destroy_count = 0;
+
+/*
+  The physics system needs a record of the bodies in contact. Not only
+  that, we also need to know which bodies were in contact in the previous
+  update, and are not anymore, ... We can model this as a relation graph
+  between bodies. The edge between two bodies represents contact, with
+  at most only one edge being between each two bodies. Thus, we can turn
+  it into a square matrix. Each entry of the matrix can be 1, or 0.
+  Since we would have duplicates like (A, A), (A, B) and (B, A), we can
+  keep an upper triangle of this matrix... I think you can guess the rest
+  of this model.
+  The contact set, is a bitset telling if two objects are in contact or
+  not. To, be in contact, or not to be in contact. That is the question.
+
+  Caution: The contacts are stored based on slot index.
+ */
+#define CONTACT_WORD_COUNT (((MAX_BODY_COUNT) + 63) / 64)
+typedef struct {
+	uint64_t bits[MAX_BODY_COUNT][CONTACT_WORD_COUNT];
+} ContactSet;
+
+static ContactSet contacts_a;
+static ContactSet contacts_b;
+/* contacts registered in the current update */
+static ContactSet *current_contacts = &contacts_a;
+/* contacts registered in the previous update */
+static ContactSet *previous_contacts = &contacts_b;
+
+#define MAX_EVENT_COUNT \
+	(MAX_BODY_COUNT) * ((MAX_BODY_COUNT) - 1) / 2
+static phCollisionEvent collision_events[MAX_EVENT_COUNT];
+static int event_count = 0;
+
+static void (*collision_listener)(phCollisionEvent) = NULL;
+
+/* tells us if two bodies are in contact */
+static bool get_contact(const ContactSet *set,
+			phBodyIndex a, phBodyIndex b)
+{
+	if (a > b) {
+		phBodyIndex tmp = a;
+		a = b;
+		b = tmp;
+	}
+
+	return (set->bits[a][b / 64] & (UINT64_C(1) << (b % 64))) != 0;
+}
+
+/* registers the contact of the bodies */
+static void set_contact(ContactSet *set,
+			phBodyIndex a, phBodyIndex b)
+{
+	if (a > b) {
+		phBodyIndex tmp = a;
+		a = b;
+		b = tmp;
+	}
+
+	set->bits[a][b / 64] |= UINT64_C(1) << (b % 64);
+}
+
+/* registers the contact of the bodies */
+static void clear_contact(ContactSet *set,
+			phBodyIndex a, phBodyIndex b)
+{
+	if (a > b) {
+		phBodyIndex tmp = a;
+		a = b;
+		b = tmp;
+	}
+
+	set->bits[a][b / 64] &= ~(UINT64_C(1) << (b % 64));
+}
+
+static void clear_slot_contacts(ContactSet *set, phBodyIndex body)
+{
+	for (phBodyIndex i = 1; i < MAX_BODY_COUNT; i++) {
+		if (i == body) continue;
+
+		clear_contact(set, body, i);
+	}
+}
+
 void ph_init(void)
 {
 	kinematic_count = 0;
 	ghost_count = 0;
 	free_slot = 1;
+	destroy_count = 0;
+	event_count = 0;
+	collision_listener = NULL;
+
+	memset(current_contacts, 0, sizeof(ContactSet));
+	memset(previous_contacts, 0, sizeof(ContactSet));
+
+	current_contacts = &contacts_a;
+	previous_contacts = &contacts_b;
+
 	for (int i = 0; i < MAX_BODY_COUNT - 1; i++) {
-		slots[i] = (BodySlot){true, 0, i+1, 0, 0};
+		slots[i] = (BodySlot){true, false, 0, i+1, 0, 0};
 	}
-	slots[MAX_BODY_COUNT-1] = (BodySlot){true, 0, 0, 0, 0};
+	slots[MAX_BODY_COUNT-1] = (BodySlot){true, false, 0, 0, 0, 0};
 }
 
 void ph_shutdown(void)
@@ -138,6 +235,7 @@ phBody ph_new_body(enum phBodyType type)
 	if (type == PH_GHOST) {
 		set_body(last_index, &bd);
 		slot->empty = false;
+		slot->pending_destroy = false;
 		slot->index = last_index;
 		slot->generation++;
 		id = CREATE_BODY(free_slot, slot->generation);
@@ -154,6 +252,7 @@ phBody ph_new_body(enum phBodyType type)
 		}
 		set_body(kinematic_count + 1, &bd);
 		slot->empty = false;
+		slot->pending_destroy = false;
 		slot->index = kinematic_count + 1;
 		slot->generation++;
 		id = CREATE_BODY(free_slot, slot->generation);
@@ -179,14 +278,12 @@ bool ph_is_body_valid(phBody body)
 	return true;
 }
 
-void ph_destroy_body(phBody body)
+static void destroy_body_immediate(phBodyIndex slot_index)
 {
-	phBodyIndex slot_index, index, last_ghost, last_kin;
+	phBodyIndex index, last_ghost, last_kin;
 	BodySlot *slot;
 	enum phBodyType type;
-	if (!ph_is_body_valid(body)) return;
 
-	slot_index = PH_INDEX(body);
 	slot = &slots[slot_index];
 	index = slot->index;
 	type = bodies.type[index];
@@ -214,10 +311,27 @@ void ph_destroy_body(phBody body)
 		kinematic_count--;
 	}
 
+	clear_slot_contacts(current_contacts, slot_index);
+	clear_slot_contacts(previous_contacts, slot_index);
+
 	slot->empty = true;
+	slot->pending_destroy = false;
 	slot->index = 0;
 	slot->next_free = free_slot;
 	slot->data = 0;
+
+	free_slot = slot_index;
+}
+
+void ph_destroy_body(phBody body) {
+	BodySlot *slot;
+	if (!ph_is_body_valid(body)) return;
+
+	slot = &slots[PH_INDEX(body)];
+	if (slot->pending_destroy) return;
+
+	slot->pending_destroy = true;
+	destroy_queue[destroy_count++] = PH_INDEX(body);
 }
 
 bool ph_is_body_enabled(phBody body)
@@ -319,39 +433,140 @@ void ph_set_body_user_data(phBody body, phUserData data)
 	}
 }
 
-static bool resolve_kinematics(int a, int b)
+void ph_set_collision_listener(void (*listener)(phCollisionEvent))
+{
+	collision_listener = listener;
+}
+
+static void queue_event(phBodyIndex a, phBodyIndex b,
+			Vec2 normal, float pen, enum phEventType type)
+{
+	if (event_count >= MAX_EVENT_COUNT) return;
+
+	collision_events[event_count++] = (phCollisionEvent){
+		.body_a = CREATE_BODY(a, slots[a].generation),
+		.body_b = CREATE_BODY(b, slots[b].generation),
+		.normal = normal,
+		.penetration = pen,
+		.type = type
+	};
+}
+
+static void register_contact(int dense_a, int dense_b,
+			     Vec2 normal, float pen)
+{
+	phBodyIndex a = bodies.rev_map[dense_a];
+	phBodyIndex b = bodies.rev_map[dense_b];
+	if (get_contact(current_contacts, a, b)) return;
+
+	set_contact(current_contacts, a, b);
+	enum phEventType type =
+		get_contact(previous_contacts, a, b) ?
+		PH_COLLISION_STAY : PH_COLLISION_ENTER;
+	queue_event(a, b, normal, pen, type);
+}
+
+static bool detect_collision(int a, int b,
+			     Vec2 *normal, float *penetration)
 {
 	float dx = bodies.x[b] - bodies.x[a];
 	float dy = bodies.y[b] - bodies.y[a];
-	float dist = sqrtf(dx*dx + dy*dy);
+
+	float dist_sq = dx*dx + dy*dy;
 	float min_dist = bodies.radius[a] + bodies.radius[b];
-	float overlap = min_dist - dist;
-	float nx, ny;
+	float min_dist_sq = min_dist * min_dist;
 
-	if (dist >= min_dist || dist <= 0.0001f) return false;
+	if (dist_sq >= min_dist_sq) return false;
 
-	/* normalized direction from a to b */
-	nx = dx / dist;
-	ny = dy / dist;
+	if (dist_sq <= 0.00000001f) {
+		*normal = (Vec2){1.0f, 1.0f};
+		*penetration = min_dist;
+		return true;
+	}
 
-	/* position correction */
-	bodies.x[a] -= nx * overlap * 0.5f;
-	bodies.y[a] -= ny * overlap * 0.5f;
-	bodies.x[b] += nx * overlap * 0.5f;
-	bodies.y[b] += ny * overlap * 0.5f;
+	float dist = sqrtf(dist_sq);
+	*normal = (Vec2){dx / dist, dy / dist};
+	*penetration = min_dist - dist;
 
 	return true;
 }
 
+static bool resolve_kinematics(int a, int b)
+{
+	Vec2 normal;
+	float penetration;
+
+	if (!detect_collision(a, b, &normal, &penetration)) return false;
+
+	register_contact(a, b, normal, penetration);
+
+	/* position correction */
+	bodies.x[a] -= normal.x * penetration * 0.5f;
+	bodies.y[a] -= normal.y * penetration * 0.5f;
+	bodies.x[b] += normal.x * penetration * 0.5f;
+	bodies.y[b] += normal.y * penetration * 0.5f;
+
+	return true;
+}
+
+static void detect_all_contacts(void)
+{
+	int count = kinematic_count + ghost_count;
+
+	for (int i = 1; i <= count; i++) {
+		if (!bodies.enabled[i]) continue;
+
+		for (int j = i + 1; j <= count; j++) {
+			if (!bodies.enabled[j])
+				continue;
+
+			Vec2 normal;
+			float penetration;
+			if (!detect_collision(i, j, &normal,
+					      &penetration)) continue;
+			register_contact(i, j, normal, penetration);
+		}
+	}
+}
+
+static void detect_exits(void)
+{
+	for (phBodyIndex a = 1; a < MAX_BODY_COUNT; a++) {
+		for (phBodyIndex b = a + 1; b < MAX_BODY_COUNT; b++) {
+			if (!get_contact(previous_contacts, a, b))
+				continue;
+
+			if (get_contact(current_contacts, a, b))
+				continue;
+
+			/* While bodies don't get destroyed during an
+			 update, we keep this check*/
+			if (slots[a].empty || slots[b].empty) continue;
+
+			queue_event(a, b, (Vec2){0}, 0.0f,
+				    PH_COLLISION_EXIT);
+		}
+	}
+}
+
 void ph_update(float dt, int iter_count)
 {
-	for (int i = 1; i <= kinematic_count; i++) {
+	memset(current_contacts, 0, sizeof(ContactSet));
+	event_count = 0;
+
+	for (int i = 0; i < destroy_count; i++) {
+		destroy_body_immediate(destroy_queue[i]);
+	}
+	destroy_count = 0;
+
+	for (int i = 1; i <= kinematic_count + ghost_count; i++) {
 		if (!bodies.enabled[i]) continue;
 
 		bodies.x[i] += bodies.vx[i] * dt;
 		bodies.y[i] += bodies.vy[i] * dt;
 	}
 
+	detect_all_contacts();
 	for (int iter = 0; iter < iter_count; iter++) {
 		for (int i = 1; i <= kinematic_count; i++) {
 			if (!bodies.enabled[i]) continue;
@@ -359,6 +574,28 @@ void ph_update(float dt, int iter_count)
 				if (!bodies.enabled[j]) continue;
 				resolve_kinematics(i, j);
 			}
+		}
+	}
+
+	/*
+	  Positional correction may have pushed a body into another, so
+	  we must catch these contacts created by the solver.
+	 */
+	detect_all_contacts();
+
+	/*
+	  any contact present in the last update, but absent from this
+	  one has exited.
+	*/
+	detect_exits();
+
+	ContactSet *tmp = previous_contacts;
+	previous_contacts = current_contacts;
+	current_contacts = tmp;
+
+	if (collision_listener) {
+		for (int i = 0; i < event_count; i++) {
+			collision_listener(collision_events[i]);
 		}
 	}
 }

@@ -35,11 +35,18 @@ typedef uint64_t phUserData;
 
 enum phBodyType {PH_BODY_NONE, PH_KINEMATIC, PH_GHOST};
 
+enum phEventType {
+	PH_COLLISION_ENTER,
+	PH_COLLISION_STAY,
+	PH_COLLISION_EXIT
+};
+
 typedef struct {
 	phBody body_a;
 	phBody body_b;
 	Vec2 normal;
 	float penetration;
+	enum phEventType type;
 } phCollisionEvent;
 
 /* init the physics system */
