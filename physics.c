@@ -443,6 +443,15 @@ static void queue_event(phBodyIndex a, phBodyIndex b,
 {
 	if (event_count >= MAX_EVENT_COUNT) return;
 
+	if (a > b) {
+		phBodyIndex tmp = a;
+		a = b;
+		b = tmp;
+
+		normal.x = -normal.x;
+		normal.y = -normal.y;
+	}
+
 	collision_events[event_count++] = (phCollisionEvent){
 		.body_a = CREATE_BODY(a, slots[a].generation),
 		.body_b = CREATE_BODY(b, slots[b].generation),
