@@ -32,6 +32,13 @@ void shutdown_all_components(void)
 }
 #undef X
 
+#define X(name) name##_start();
+void start_all_components(void)
+{
+	ALL_COMPONENTS(X)
+}
+#undef X
+
 #define X(name) name##_flush_entities();
 void flush_all_components(void)
 {

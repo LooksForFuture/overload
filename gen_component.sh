@@ -43,6 +43,9 @@ static decl_component_storage(${COMPONENT_NAME_LOWER},
 
 static inline void ${COMPONENT_NAME_LOWER}_init_private(void) {}
 static inline void ${COMPONENT_NAME_LOWER}_shutdown_private(void) {}
+
+void ${COMPONENT_NAME_LOWER}_start(void) {}
+
 static inline void ${COMPONENT_NAME_LOWER}_add_private(Entity ent, EntityIndex index)
 {
 	(void)ent;

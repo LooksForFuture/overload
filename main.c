@@ -66,6 +66,8 @@ int main(void)
 
 	set_entity_component_interfaces(get_component_interfaces());
 
+	start_all_components();
+
 	/* setup the player */
 	{
 		transform t;
@@ -176,7 +178,7 @@ int main(void)
 			tick -= fixed_dt;
 
 			ph_update(fixed_dt, 5);
-			collider_update_physics(fixed_dt);
+			collider_sync_physics();
 		}
 
 		/* update player input */

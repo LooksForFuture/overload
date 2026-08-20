@@ -90,8 +90,8 @@ phUserData ph_get_body_user_data(phBody); /* is zero by default */
 
 void ph_set_body_user_data(phBody, phUserData);
 
-void ph_set_collision_listener(void (*listener)(phCollisionEvent));
-
 void ph_update(float, int);
+
+const phCollisionEvent *ph_get_events(int *);
 
 #endif /* PHYSICS_H */

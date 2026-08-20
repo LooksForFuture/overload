@@ -99,8 +99,6 @@ static ContactSet *previous_contacts = &contacts_b;
 static phCollisionEvent collision_events[MAX_EVENT_COUNT];
 static int event_count = 0;
 
-static void (*collision_listener)(phCollisionEvent) = NULL;
-
 /* tells us if two bodies are in contact */
 static bool get_contact(const ContactSet *set,
 			phBodyIndex a, phBodyIndex b)
@@ -156,7 +154,6 @@ void ph_init(void)
 	free_slot = 1;
 	destroy_count = 0;
 	event_count = 0;
-	collision_listener = NULL;
 
 	memset(current_contacts, 0, sizeof(ContactSet));
 	memset(previous_contacts, 0, sizeof(ContactSet));
@@ -433,11 +430,6 @@ void ph_set_body_user_data(phBody body, phUserData data)
 	}
 }
 
-void ph_set_collision_listener(void (*listener)(phCollisionEvent))
-{
-	collision_listener = listener;
-}
-
 static void queue_event(phBodyIndex a, phBodyIndex b,
 			Vec2 normal, float pen, enum phEventType type)
 {
@@ -601,10 +593,10 @@ void ph_update(float dt, int iter_count)
 	ContactSet *tmp = previous_contacts;
 	previous_contacts = current_contacts;
 	current_contacts = tmp;
+}
 
-	if (collision_listener) {
-		for (int i = 0; i < event_count; i++) {
-			collision_listener(collision_events[i]);
-		}
-	}
+const phCollisionEvent *ph_get_events(int *count)
+{
+	*count = event_count;
+	return &collision_events[0];
 }

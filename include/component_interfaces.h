@@ -10,6 +10,8 @@ void init_all_components(void);
 
 void shutdown_all_components(void);
 
+void start_all_components(void);
+
 void flush_all_components(void);
 
 #endif /* COMPONENT_INTERFACES_H */

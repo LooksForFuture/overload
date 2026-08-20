@@ -14,6 +14,9 @@ static decl_component_storage(actuator,
 
 static inline void actuator_init_private(void) {}
 static inline void actuator_shutdown_private(void) {}
+
+void actuator_start(void) {}
+
 static inline void actuator_add_private(Entity ent, EntityIndex index)
 {
 	(void)ent;

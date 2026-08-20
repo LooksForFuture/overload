@@ -8,6 +8,9 @@ static decl_component_storage(transform,
 
 static inline void transform_init_private(void) {}
 static inline void transform_shutdown_private(void) {}
+
+void transform_start(void) {}
+
 static inline void transform_add_private(Entity ent, EntityIndex index)
 {
 	(void)ent;

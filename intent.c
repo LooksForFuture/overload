@@ -11,6 +11,9 @@ static decl_component_storage(intent,
 
 static inline void intent_init_private(void) {}
 static inline void intent_shutdown_private(void) {}
+
+void intent_start(void) {}
+
 static inline void intent_add_private(Entity ent, EntityIndex index)
 {
 	(void)ent;

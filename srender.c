@@ -14,6 +14,8 @@ static decl_component_storage(
 static inline void srender_init_private(void) {}
 static inline void srender_shutdown_private(void) {}
 
+void srender_start(void) {}
+
 static inline void srender_add_private(Entity ent, EntityIndex index)
 {
 	(void)ent;

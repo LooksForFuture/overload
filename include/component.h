@@ -49,6 +49,7 @@
 	\
 	void name##_init(void); \
 	void name##_shutdown(void); \
+	void name##_start(void); \
 	name name##_add(Entity); \
 	name name##_get(Entity); \
 	void name##_rem_entity(Entity); \
