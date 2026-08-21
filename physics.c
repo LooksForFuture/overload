@@ -161,7 +161,7 @@ void ph_init(void)
 	current_contacts = &contacts_a;
 	previous_contacts = &contacts_b;
 
-	for (int i = 0; i < MAX_BODY_COUNT - 1; i++) {
+	for (uint8_t i = 0; i < MAX_BODY_COUNT - 1; i++) {
 		slots[i] = (BodySlot){true, false, 0, i+1, 0, 0};
 	}
 	slots[MAX_BODY_COUNT-1] = (BodySlot){true, false, 0, 0, 0, 0};

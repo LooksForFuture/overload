@@ -2,6 +2,7 @@
 #include <gamedef.h>
 #include <dsa.h>
 #include <all_components.h>
+#include <component_interfaces.h>
 
 #include <assert.h>
 #include <stdbool.h>
@@ -15,7 +16,8 @@ typedef struct {
 	Entity id;
 	bool enabled;
 	bool pending;
-	uint64_t mask;
+	int components[COMPONENT_COUNT];
+	int component_count;
 } EntityDesc;
 static EntityDesc entities[MAX_ENTITY_COUNT];
 static EntityIndex next_entity = 1;
@@ -26,7 +28,7 @@ static struct {
 	size_t capacity;
 } destroy_pending; /* entities pending to be destroyed */
 
-static const component_interface *interfaces = NULL;
+static component_interface *interfaces = NULL;
 
 void init_entities(void)
 {
@@ -35,6 +37,7 @@ void init_entities(void)
 			CREATE_ENTITY(i+1, 0),
 			false,
 			false,
+			{0},
 			0
 		};
 	}
@@ -42,22 +45,21 @@ void init_entities(void)
 		CREATE_ENTITY(0, 0),
 		false,
 		false,
+		{0},
 		0
 	};
 
 	destroy_pending.items = NULL;
 	destroy_pending.count = 0;
 	destroy_pending.capacity = 0;
+
+	interfaces = get_component_interfaces();
 }
 
 void shutdown_entities(void)
 {
+	interfaces = NULL;
 	glut_free(destroy_pending.items);
-}
-
-void set_entity_component_interfaces(const component_interface *p)
-{
-	interfaces = p;
 }
 
 Entity create_entity(void)
@@ -79,6 +81,7 @@ Entity create_entity(void)
 		CREATE_ENTITY(next_entity, generation),
 		true,
 		false,
+		{0},
 		0
 	};
 	*entity = new_entity;
@@ -93,63 +96,66 @@ bool is_entity_valid(Entity ent)
 	return entities[ENTITY_INDEX(ent)].id == ent;
 }
 
-void component_added_to_entity(Entity ent, uint64_t id)
+void component_added_to_entity(Entity ent, int component_id)
 {
 	EntityDesc *entity;
+
+	assert(component_id >= 0);
+	assert(component_id < COMPONENT_COUNT);
+
 	if (ENTITY_INDEX(ent) >= MAX_ENTITY_COUNT) return;
+
 	entity = &entities[ENTITY_INDEX(ent)];
 	if (entity->id != ent) return;
 
-	entity->mask = entity-> mask | id;
+	for (int i = 0; i < entity->component_count; i++) {
+		if (entity->components[i] == component_id) return;
+	}
+	assert(entity->component_count < COMPONENT_COUNT);
+	entity->components[entity->component_count++] = component_id;
 }
 
-void component_removed_from_entity(Entity ent, uint64_t id)
+void component_removed_from_entity(Entity ent, int id)
 {
 	EntityDesc *entity;
 	if (ENTITY_INDEX(ent) >= MAX_ENTITY_COUNT) return;
 	entity = &entities[ENTITY_INDEX(ent)];
 	if (entity->id != ent) return;
 
-	entity->mask = entity-> mask & (~id);
+	for (int i = 0; i < entity->component_count; i++) {
+		if (entity->components[i] == id) {
+			entity->components[i] = entity->components[
+				--entity->component_count
+				];
+			break;
+		}
+	}
 }
 
 void destroy_entity(Entity ent)
 {
 	EntityDesc *entity;
-	/* EntityIndex next_entity_p = next_entity; */
 	if (ENTITY_INDEX(ent) >= MAX_ENTITY_COUNT) return;
 	entity = &entities[ENTITY_INDEX(ent)];
 	if (entity->id != ent || entity->pending) return;
 
 	da_append(&destroy_pending, ent);
 	entity->pending = true;
-
-	/* if (entity->mask != 0) {
-		for (int i = 0; i < COMPONENT_COUNT; i++) {
-			uint64_t mask = pow(2, i);
-			if ((entity->mask & mask) == mask) {
-				component_interfaces[i].rem_entity(ent);
-			}
-		}
-	}
-
-	next_entity = ENTITY_INDEX(entity->id);
-	entity->id = CREATE_ENTITY(next_entity_p,
-	ENTITY_GENERATION(entity->id)); */
 }
 
 static inline void destroy_entity_immediately(Entity ent)
 {
 	EntityDesc *entity = &entities[ENTITY_INDEX(ent)];
 	EntityIndex next_entity_p = next_entity;
-	if (entity->mask != 0) {
-		for (int i = 0; i < COMPONENT_COUNT; i++) {
-			uint64_t mask = 1ULL<<i;
-			if ((entity->mask & mask) == mask) {
-				interfaces[i].
-					rem_entity_immediately(ent);
-			}
-		}
+	while (entity->component_count > 0) {
+		int old_count = entity->component_count;
+		int component =
+			entity->components[0];
+		assert(component >= 0);
+		assert(component < COMPONENT_COUNT);
+
+		interfaces[component].rem_entity_immediately(ent);
+		assert(entity->component_count == old_count - 1);
 	}
 
 	next_entity = ENTITY_INDEX(entity->id);
@@ -158,7 +164,7 @@ static inline void destroy_entity_immediately(Entity ent)
 		ENTITY_GENERATION(entity->id));
 	entity->enabled = false;
 	entity->pending = false;
-	entity->mask = 0;
+	entity->component_count = 0;
 }
 
 void flush_entities(void)
@@ -174,12 +180,16 @@ void flush_entities(void)
 	destroy_pending.count = 0;
 }
 
-uint64_t get_entity_component_mask(Entity ent)
+const int *get_entity_components(Entity ent, int *count)
 {
 	EntityDesc *entity;
-	if (ENTITY_INDEX(ent) >= MAX_ENTITY_COUNT) return 0;
-	entity = &entities[ENTITY_INDEX(ent)];
-	if (entity->id != ent) return 0;
 
-	return entity->mask;
+	if (count != NULL) *count = 0;
+
+	if (ENTITY_INDEX(ent) >= MAX_ENTITY_COUNT) return NULL;
+	entity = &entities[ENTITY_INDEX(ent)];
+	if (entity->id != ent) return NULL;
+
+	if (count != NULL) *count = entity->component_count;
+	return &entity->components[0];
 }

@@ -64,8 +64,6 @@ int main(void)
 	editor_init();
 	#endif
 
-	set_entity_component_interfaces(get_component_interfaces());
-
 	start_all_components();
 
 	/* setup the player */

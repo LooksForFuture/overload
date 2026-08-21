@@ -12,23 +12,18 @@
 
 void inspector_inspect(Entity entity)
 {
-	uint64_t entity_mask = 0;
+	int com_count = 0; /* component_count */
+	const int *components = get_entity_components(entity, &com_count);
 	const component_interface *interfaces =
 		get_component_interfaces();
 
 	if (!is_entity_valid(entity)) return;
-	entity_mask = get_entity_component_mask(entity);
 	if (editor_begin("Inspector", &(SDL_Rect){30, 30, 250, 250})) {
 		editor_layout_row_dynamic(0, 1);
 		if (editor_button("destroy")) destroy_entity(entity);
-		if (entity_mask != 0) {
-			for (int i = 0; i < COMPONENT_COUNT; i++) {
-				uint64_t mask = 1ULL<<i;
-				if ((entity_mask & mask) == mask) {
-					interfaces[i].
-						inspector_default(entity);
-				}
-			}
+		for (int i = 0; i < com_count; i++) {
+			int index = components[i];
+			interfaces[index].inspector_default(entity);
 		}
 	} editor_end();
 }

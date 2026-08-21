@@ -2,12 +2,17 @@
 #define DSA_H
 
 #include <assert.h>
+#include <string.h>
 
 #define Pair(t1, t2) struct { t1 first; t2 second; }
 
 #ifndef DA_REALLOC
 #include <glut.h>
 #define DA_REALLOC glut_realloc
+#endif
+
+#ifndef DA_FREE
+#define DA_FREE glut_free
 #endif
 
 #ifndef DA_INIT_CAP
@@ -45,17 +50,17 @@
 
 #define fa_append(fa, item) \
 	do { \
-		assert((fa)->count <= (fa)->capacity && \
+		assert((fa)->count < (fa)->capacity && \
 			"Fixed array is full"); \
 		(fa)->items[(fa)->count++] = (item); \
 	} while (0)
 
-#define fa_append_many(da, newItems, newItemsCount) \
+#define fa_append_many(fa, newItems, newItemsCount) \
 	do { \
-		assert ((fa)->count+(newItemsCount) <= (fa)->capacity && \
-			"fixed array is full"); \
+		assert ((fa)->count+(newItemsCount) < (fa)->capacity && \
+			"Fixed array is full"); \
 		memcpy((fa)->items + (fa)->count, (newItems), \
-		       (newItemsCount)*sizeof(*(da)->items)); \
+		       (newItemsCount)*sizeof(*(fa)->items)); \
 		(fa)->count += (newItemsCount); \
 	} while (0)
 

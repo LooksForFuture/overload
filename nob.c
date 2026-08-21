@@ -6,7 +6,7 @@
 		"-flto=auto"
 #define IFLAGS "-Iinclude/"
 #define LFLAGS "-lm", "-lSDL2"
-#define WARNINGS "-Wall", "-Wpedantic", "-Wextra"
+#define WARNINGS "-Wall", "-Wpedantic", "-Wextra", "-Wshadow"
 
 #define OBJ_DIR "obj"
 #define BIN_DIR "bin"

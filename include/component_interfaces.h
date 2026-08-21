@@ -4,7 +4,7 @@
 #include <all_components.h>
 #include <entity.h>
 
-const component_interface *get_component_interfaces(void);
+component_interface *get_component_interfaces(void);
 
 void init_all_components(void);
 

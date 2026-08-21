@@ -19,6 +19,7 @@ typedef uint16_t EntityGeneration;
 
 /* a component must be able to expose these functions */
 typedef struct {
+	void (*rem_entity)(Entity ent);
 	void (*rem_entity_immediately)(Entity ent);
 	void (*inspector_default)(Entity ent);
 } component_interface;
@@ -26,8 +27,6 @@ typedef struct {
 void init_entities(void);
 
 void shutdown_entities(void);
-
-void set_entity_component_interfaces(const component_interface *);
 
 Entity create_entity(void);
 
@@ -39,12 +38,16 @@ void flush_entities(void);
 
 /* caution: must only be used by the component declaration macros
    not for external use */
-void component_added_to_entity(Entity, uint64_t);
+void component_added_to_entity(Entity, int);
 
 /* caution: must only be used by the component declaration macros
    not for external use */
-void component_removed_from_entity(Entity, uint64_t);
+void component_removed_from_entity(Entity, int);
 
-uint64_t get_entity_component_mask(Entity);
+/*
+  Returns the list of the components the entity has, and puts the count
+  of the components in the passed pointer.
+*/
+const int *get_entity_components(Entity, int *);
 
 #endif
